@@ -188,7 +188,6 @@
             overflow-y: auto;
         }
 
-        /* ===== МОДАЛКА ===== */
         .scan-modal-overlay {
             position: fixed;
             inset: 0;
@@ -332,7 +331,6 @@
             color: #c8c8e0;
         }
 
-        /* ===== ГЕНЕРАТОР ===== */
         .gen-input-group { display: flex; gap: 10px; margin-bottom: 12px; }
 
         #qr-text {
@@ -416,7 +414,6 @@
 
         .gen-result strong { color: #a78bfa; }
 
-        /* ===== ИСТОРИЯ ===== */
         .history-header {
             display: flex;
             justify-content: flex-end;
@@ -537,7 +534,6 @@
 
         #file-input { display: none; }
 
-        /* ✅ Уважаем предпочтение системы */
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
                 animation-duration: 0.01ms !important;
@@ -627,6 +623,10 @@
         let lastScanTime = 0;
         const SCAN_DEBOUNCE_MS = 3000;
 
+        // ✅ Последние успешно применённые video-constraints
+        // нужно, чтобы фонарик не сбрасывал разрешение и фокус
+        let appliedVideoConstraints = null;
+
         let lastGeneratedCanvas = null;
         let lastGeneratedText = '';
 
@@ -663,7 +663,7 @@
         }
 
         // ============================================================
-        //  МОДАЛКА (фокус-трап + блокировка скролла body)
+        //  МОДАЛКА
         // ============================================================
         function initScanModal() {
             document.getElementById('scan-modal-close').addEventListener('click', closeScanModal);
@@ -681,7 +681,6 @@
                     return;
                 }
 
-                // Focus trap
                 if (e.key === 'Tab') {
                     const modal = overlay.querySelector('.scan-modal');
                     const focusables = modal.querySelectorAll(
@@ -711,7 +710,6 @@
             const modal = overlay.querySelector('.scan-modal');
             modal.scrollTop = 0;
 
-            // Фокус на кнопку закрытия после анимации
             setTimeout(() => {
                 document.getElementById('scan-modal-close').focus();
             }, 100);
@@ -732,8 +730,12 @@
             }
 
             try {
-                // ✅ Ограничиваем форматы — быстрее и меньше ложных срабатываний
-                const config = { verbose: false };
+                // ✅ useBarCodeDetectorIfSupported: false — принудительно ZXing.
+                //    Нативный BarcodeDetector плохо/нестабильно читает DataMatrix.
+                const config = {
+                    verbose: false,
+                    useBarCodeDetectorIfSupported: false
+                };
                 if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
                     config.formatsToSupport = [
                         Html5QrcodeSupportedFormats.QR_CODE,
@@ -741,8 +743,9 @@
                     ];
                 }
                 html5QrCode = new Html5Qrcode("reader", config);
+                console.log('✓ Сканер инициализирован (ZXing, QR + DataMatrix)');
             } catch (err) {
-                console.warn('Конфиг с форматами не принят, пробуем без него:', err?.message);
+                console.warn('Конфиг не принят, пробуем минимальный:', err?.message);
                 try {
                     html5QrCode = new Html5Qrcode("reader");
                 } catch (e2) {
@@ -769,8 +772,6 @@
 
         async function startScanning() {
             if (isScanning || isStopping) return;
-
-            // ✅ Явное сообщение, если сканер не инициализирован
             if (!html5QrCode) {
                 alert('Сканер не инициализирован. Обновите страницу.');
                 return;
@@ -796,8 +797,9 @@
             try { await html5QrCode.stop(); } catch (e) {}
             await new Promise(r => setTimeout(r, 200));
 
+            // ✅ fps: 60 — макс. частота анализа кадров
             const config = {
-                fps: 25,
+                fps: 60,
                 qrbox: (vw, vh) => {
                     const minEdge = Math.min(vw, vh);
                     const size = Math.max(200, Math.min(400, Math.floor(minEdge * 0.75)));
@@ -820,8 +822,8 @@
                 btnStart.classList.add('is-scanning');
                 btnStart.disabled = false;
 
-                await applyContinuousFocus();
-                await applyIdealResolution();
+                // ✅ Один вызов применяет разрешение + fps + фокус
+                await applyAllVideoSettings();
                 await checkTorchSupport();
                 return;
 
@@ -853,8 +855,7 @@
                     btnStart.classList.add('is-scanning');
                     btnStart.disabled = false;
 
-                    await applyContinuousFocus();
-                    await applyIdealResolution();
+                    await applyAllVideoSettings();
                     await checkTorchSupport();
                     return;
 
@@ -891,36 +892,68 @@
             }
         }
 
-        async function applyContinuousFocus() {
+        /**
+         * ✅ Пробует применить разрешение + fps + фокус одним вызовом.
+         * Порядок: 2560×1440@60 → 1920×1080@60 → 1920×1080 → 1280×720 → только фокус.
+         * Результат сохраняется в appliedVideoConstraints — чтобы фонарик не сбрасывал настройки.
+         */
+        async function applyAllVideoSettings() {
             if (!html5QrCode) return;
-            try {
-                await html5QrCode.applyVideoConstraints({ advanced: [{ focusMode: "continuous" }] });
-                console.log('✓ Continuous focus enabled');
-            } catch (e) {
-                console.warn('Continuous focus не удался:', e?.message);
-                try {
-                    await html5QrCode.applyVideoConstraints({ advanced: [{ focusMode: "single-shot" }] });
-                    console.log('✓ Single-shot focus enabled');
-                } catch (e2) {
-                    console.warn('Focus mode недоступен:', e2?.message);
-                }
-            }
-        }
 
-        async function applyIdealResolution() {
-            if (!html5QrCode) return;
-            try {
-                await html5QrCode.applyVideoConstraints({ width: { ideal: 1920 }, height: { ideal: 1080 } });
-                console.log('✓ Full HD resolution requested');
-            } catch (e) {
-                console.warn('Full HD не удался, пробуем HD:', e?.message);
+            const focusAdvanced = { focusMode: "continuous" };
+
+            const attempts = [
+                {
+                    label: '2560×1440 @60fps + focus',
+                    constraints: {
+                        width: { ideal: 2560 },
+                        height: { ideal: 1440 },
+                        frameRate: { ideal: 60 },
+                        advanced: [focusAdvanced]
+                    }
+                },
+                {
+                    label: '1920×1080 @60fps + focus',
+                    constraints: {
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        frameRate: { ideal: 60 },
+                        advanced: [focusAdvanced]
+                    }
+                },
+                {
+                    label: '1920×1080 + focus',
+                    constraints: {
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        advanced: [focusAdvanced]
+                    }
+                },
+                {
+                    label: '1280×720 + focus',
+                    constraints: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        advanced: [focusAdvanced]
+                    }
+                },
+                {
+                    label: 'только focus',
+                    constraints: { advanced: [focusAdvanced] }
+                }
+            ];
+
+            for (const attempt of attempts) {
                 try {
-                    await html5QrCode.applyVideoConstraints({ width: { ideal: 1280 }, height: { ideal: 720 } });
-                    console.log('✓ HD resolution requested');
-                } catch (e2) {
-                    console.warn('HD тоже не удался:', e2?.message);
+                    await html5QrCode.applyVideoConstraints(attempt.constraints);
+                    appliedVideoConstraints = attempt.constraints;
+                    console.log('✓ Применено:', attempt.label);
+                    return;
+                } catch (e) {
+                    console.warn('✗ Не удалось:', attempt.label, e?.message);
                 }
             }
+            console.warn('Все попытки применить видео-настройки провалились, работаем на дефолте');
         }
 
         function resetStartButton() {
@@ -937,7 +970,6 @@
         }
 
         function showScanError(title, message, details) {
-            // ✅ Если открыта модалка — закроем её, чтобы ошибка была видна
             closeScanModal();
 
             const box = document.getElementById('scan-error');
@@ -986,6 +1018,7 @@
             lastScanTime = 0;
             torchSupported = false;
             torchOn = false;
+            appliedVideoConstraints = null;   // сбрасываем при стопе
 
             resetStartButton();
 
@@ -1023,13 +1056,36 @@
         async function setTorch(on) {
             if (!html5QrCode) return;
             const btnTorch = document.getElementById('btn-torch');
+
+            // ✅ Сохраняем ранее применённые настройки (разрешение, fps, фокус),
+            //    иначе applyVideoConstraints их сбросит
+            const baseConstraints = appliedVideoConstraints || { advanced: [{ focusMode: "continuous" }] };
+            const combined = {
+                ...baseConstraints,
+                advanced: [
+                    ...(baseConstraints.advanced || []),
+                    { torch: on }
+                ]
+            };
+
+            try {
+                await html5QrCode.applyVideoConstraints(combined);
+                torchOn = on;
+                btnTorch.classList.toggle('active', on);
+                btnTorch.title = on ? 'Выключить фонарик' : 'Включить фонарик';
+                return;
+            } catch (e) {
+                console.warn('Torch + base constraints не удалось:', e?.message);
+            }
+
+            // Fallback — только фонарик
             try {
                 await html5QrCode.applyVideoConstraints({ advanced: [{ torch: on }] });
                 torchOn = on;
                 btnTorch.classList.toggle('active', on);
                 btnTorch.title = on ? 'Выключить фонарик' : 'Включить фонарик';
             } catch (e) {
-                console.warn('Не удалось переключить фонарик:', e);
+                console.warn('Фонарик недоступен:', e?.message);
                 showToast('Фонарик недоступен на этом устройстве');
                 torchSupported = false;
                 btnTorch.disabled = true;
@@ -1213,7 +1269,6 @@
                 return;
             }
 
-            // ✅ Защита от двойного клика
             if (generateBtn.disabled) return;
             generateBtn.disabled = true;
 
@@ -1313,7 +1368,6 @@
             if (!toast) {
                 toast = document.createElement('div');
                 toast.id = 'app-toast';
-                // ✅ Скринридеры озвучат уведомление
                 toast.setAttribute('role', 'status');
                 toast.setAttribute('aria-live', 'polite');
                 document.body.appendChild(toast);
