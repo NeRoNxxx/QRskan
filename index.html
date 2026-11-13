@@ -313,6 +313,36 @@
         #share-qr-btn { background: #17a2b8; color: #fff; }
         #download-qr-btn { background: #2a2a45; color: #c8c8e0; }
 
+        .history-header {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 12px;
+        }
+
+        .btn-clear-all {
+            padding: 8px 14px;
+            border: 1px solid rgba(220, 53, 69, 0.4);
+            border-radius: 10px;
+            background: transparent;
+            color: #ff5c6c;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-clear-all:hover {
+            background: rgba(220, 53, 69, 0.15);
+            border-color: #dc3545;
+        }
+
+        .btn-clear-all:active {
+            transform: scale(0.97);
+        }
+
         #history-list { list-style: none; }
 
         #history-list li {
@@ -326,10 +356,25 @@
             font-size: 0.85rem;
             word-break: break-all;
             border: 1px solid rgba(255, 255, 255, 0.04);
+            gap: 12px;
         }
 
-        .history-labels { display: flex; gap: 4px; margin-right: 8px; flex-shrink: 0; }
-        .history-item-text { flex: 1; margin-right: 10px; color: #c8c8e0; }
+        .history-labels { display: flex; gap: 4px; flex-shrink: 0; }
+
+        .history-item-text {
+            flex: 1;
+            color: #c8c8e0;
+            min-width: 0;
+        }
+
+        .history-actions {
+            display: flex;
+            gap: 14px;
+            flex-shrink: 0;
+            margin-left: 12px;
+            padding-left: 12px;
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+        }
 
         .history-item-type {
             font-size: 0.65rem;
@@ -346,7 +391,7 @@
         .type-gs1 { background: #8b5cf6; }
 
         .delete-btn, .regen-btn {
-            padding: 5px 9px;
+            padding: 6px 10px;
             font-size: 0.75rem;
             border-radius: 7px;
             border: none;
@@ -356,10 +401,18 @@
         }
 
         .delete-btn { background: #dc3545; color: #fff; }
-        .regen-btn { background: #6c63ff; color: #fff; margin-right: 5px; }
+        .delete-btn:hover { background: #b02a37; }
+        .regen-btn { background: #6c63ff; color: #fff; }
+        .regen-btn:hover { background: #5750d6; }
         .regen-btn.gs1 { background: #8b5cf6; }
+        .regen-btn.gs1:hover { background: #7c3aed; }
 
-        .empty-history { text-align: center; color: #5a5a7a; padding: 30px 20px; font-size: 0.9rem; }
+        .empty-history {
+            text-align: center;
+            color: #5a5a7a;
+            padding: 30px 20px;
+            font-size: 0.9rem;
+        }
 
         #app-toast {
             position: fixed;
@@ -429,6 +482,9 @@
         </div>
 
         <div id="history" class="tab-content">
+            <div class="history-header">
+                <button id="clear-all-btn" class="btn-clear-all" style="display: none;">🗑 Очистить всю историю</button>
+            </div>
             <ul id="history-list"></ul>
             <div id="empty-history" class="empty-history" style="display: none;">История пуста</div>
         </div>
@@ -460,6 +516,7 @@
             initTabs();
             initScanner();
             initGenerator();
+            initHistoryControls();
             renderHistory();
         });
 
@@ -528,17 +585,21 @@
 
             // Ранние проверки окружения
             if (!window.isSecureContext) {
-                showScanError('Небезопасное соединение', 'Камера доступна только по HTTPS или на localhost. Откройте страницу по https:// (например, через GitHub Pages).');
+                showScanError('Небезопасное соединение', 'Камера доступна только по HTTPS или на localhost.');
                 resetStartButton();
                 return;
             }
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                showScanError('Браузер не поддерживает камеру', 'navigator.mediaDevices.getUserMedia отсутствует. Используйте современный браузер.');
+                showScanError('Браузер не поддерживает камеру', 'navigator.mediaDevices.getUserMedia отсутствует.');
                 resetStartButton();
                 return;
             }
 
-            // ✅ УЛУЧШЕННЫЙ КОНФИГ: fps 25 + динамический qrbox 75%
+            // ✅ Безопасная остановка предыдущего запуска (если был)
+            try { await html5QrCode.stop(); } catch (e) {}
+            await new Promise(r => setTimeout(r, 200));
+
+            // ✅ Конфиг без width/height — только fps и qrbox
             const config = {
                 fps: 25,
                 qrbox: (vw, vh) => {
@@ -549,120 +610,97 @@
                 disableFlip: false
             };
 
-            // ✅ КАСКАД ПОПЫТОК: Full HD → HD → простой
-            const attempts = [
-                {
-                    label: 'full-hd (1920×1080)',
-                    constraints: {
-                        facingMode: "environment",
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    }
-                },
-                {
-                    label: 'hd (1280×720)',
-                    constraints: {
-                        facingMode: "environment",
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                },
-                {
-                    label: 'simple (без constraints)',
-                    constraints: { facingMode: "environment" }
-                }
-            ];
+            // ✅ Один аргумент — только facingMode, без width/height
+            try {
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    onScanError
+                );
+                console.log('✓ Камера запущена через facingMode');
 
-            let started = false;
-            let firstErr = null;
-            let lastErr = null;
+                isScanning = true;
+                btnStart.textContent = '⏹ Остановить';
+                btnStart.classList.add('is-scanning');
+                btnStart.disabled = false;
 
-            for (const attempt of attempts) {
-                try {
-                    await html5QrCode.start(
-                        attempt.constraints,
-                        config,
-                        onScanSuccess,
-                        onScanError
-                    );
-                    console.log(`✓ Камера запущена: ${attempt.label}`);
-                    started = true;
-                    break;
-                } catch (e) {
-                    console.warn(`✗ Попытка "${attempt.label}" не удалась:`, e?.name, e?.message);
-                    if (!firstErr) firstErr = e;
-                    lastErr = e;
-                    try { await html5QrCode.stop(); } catch (_) {}
-                    await new Promise(r => setTimeout(r, 400));
-                }
-            }
+                // Применяем фокус и разрешение отдельно
+                await applyContinuousFocus();
+                await applyIdealResolution();
+                await checkTorchSupport();
+                return;
 
-            // Последний fallback — по deviceId
-            if (!started) {
+            } catch (err) {
+                console.warn('Запуск через facingMode не удался:', err?.name, err?.message);
+
+                // Fallback: получаем список камер и выбираем заднюю по deviceId
                 try {
                     const devices = await Html5Qrcode.getCameras();
-                    if (devices && devices.length > 0) {
-                        let cameraId = devices[0].id;
-                        for (const d of devices) {
-                            const label = (d.label || '').toLowerCase();
-                            if (label.includes('back') || label.includes('rear') ||
-                                label.includes('задн') || label.includes('environment')) {
-                                cameraId = d.id;
-                                break;
+                    if (!devices || devices.length === 0) {
+                        throw new Error('Камеры не найдены');
+                    }
+
+                    let cameraId = devices[0].id;
+                    for (const d of devices) {
+                        const label = (d.label || '').toLowerCase();
+                        if (label.includes('back') || label.includes('rear') ||
+                            label.includes('задн') || label.includes('environment')) {
+                            cameraId = d.id;
+                            break;
+                        }
+                    }
+
+                    // Останавливаем перед повторным стартом
+                    try { await html5QrCode.stop(); } catch (e) {}
+                    await new Promise(r => setTimeout(r, 300));
+
+                    await html5QrCode.start(cameraId, config, onScanSuccess, onScanError);
+                    console.log('✓ Камера запущена по deviceId:', cameraId.substring(0, 8));
+
+                    isScanning = true;
+                    btnStart.textContent = '⏹ Остановить';
+                    btnStart.classList.add('is-scanning');
+                    btnStart.disabled = false;
+
+                    await applyContinuousFocus();
+                    await applyIdealResolution();
+                    await checkTorchSupport();
+                    return;
+
+                } catch (err2) {
+                    console.error('Fallback по deviceId тоже не удался:', err2);
+
+                    let devices = [];
+                    try {
+                        const list = await navigator.mediaDevices.enumerateDevices();
+                        devices = list
+                            .filter(d => d.kind === 'videoinput')
+                            .map(d => ({ label: d.label || '(без имени)', id: d.deviceId ? d.deviceId.substring(0, 8) + '…' : '—' }));
+                    } catch (e) {}
+
+                    showScanError(
+                        'Не удалось запустить камеру',
+                        'Все способы запуска провалились. Смотрите диагностику ниже.',
+                        {
+                            firstError: formatError(err),
+                            lastError: formatError(err2),
+                            devices,
+                            diagnostics: {
+                                isSecureContext: window.isSecureContext,
+                                protocol: window.location.protocol,
+                                hostname: window.location.hostname,
+                                userAgent: navigator.userAgent,
+                                mediaDevices: !!navigator.mediaDevices,
+                                getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
                             }
                         }
-                        await html5QrCode.start(cameraId, config, onScanSuccess, onScanError);
-                        console.log('✓ Камера запущена по deviceId:', cameraId.substring(0, 8));
-                        started = true;
-                    }
-                } catch (e) {
-                    console.warn('✗ Fallback по deviceId не удался:', e?.name, e?.message);
-                    lastErr = e;
+                    );
+                    resetStartButton();
                 }
             }
-
-            if (!started) {
-                let devices = [];
-                try {
-                    const list = await navigator.mediaDevices.enumerateDevices();
-                    devices = list
-                        .filter(d => d.kind === 'videoinput')
-                        .map(d => ({ label: d.label || '(без имени)', id: d.deviceId ? d.deviceId.substring(0, 8) + '…' : '—' }));
-                } catch (e) {}
-
-                showScanError(
-                    'Не удалось запустить камеру',
-                    'Все попытки запуска провалились. Смотрите диагностику ниже и пришлите её скриншот.',
-                    {
-                        firstError: formatError(firstErr),
-                        lastError: formatError(lastErr),
-                        devices,
-                        diagnostics: {
-                            isSecureContext: window.isSecureContext,
-                            protocol: window.location.protocol,
-                            hostname: window.location.hostname,
-                            userAgent: navigator.userAgent,
-                            mediaDevices: !!navigator.mediaDevices,
-                            getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
-                        }
-                    }
-                );
-                resetStartButton();
-                return;
-            }
-
-            isScanning = true;
-            btnStart.textContent = '⏹ Остановить';
-            btnStart.classList.add('is-scanning');
-            btnStart.disabled = false;
-
-            // ✅ Включаем непрерывный автофокус (критично для размытых кодов)
-            await applyContinuousFocus();
-
-            await checkTorchSupport();
         }
 
-        // ✅ Непрерывный автофокус — ключ к чтению плохих кодов
         async function applyContinuousFocus() {
             try {
                 await html5QrCode.applyVideoConstraints({
@@ -671,7 +709,6 @@
                 console.log('✓ Continuous focus enabled');
             } catch (e) {
                 console.warn('Continuous focus не удался:', e?.message);
-                // Пробуем single-shot как fallback
                 try {
                     await html5QrCode.applyVideoConstraints({
                         advanced: [{ focusMode: "single-shot" }]
@@ -679,6 +716,27 @@
                     console.log('✓ Single-shot focus enabled');
                 } catch (e2) {
                     console.warn('Focus mode недоступен:', e2?.message);
+                }
+            }
+        }
+
+        async function applyIdealResolution() {
+            try {
+                await html5QrCode.applyVideoConstraints({
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                });
+                console.log('✓ Full HD resolution requested');
+            } catch (e) {
+                console.warn('Full HD не удался, пробуем HD:', e?.message);
+                try {
+                    await html5QrCode.applyVideoConstraints({
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    });
+                    console.log('✓ HD resolution requested');
+                } catch (e2) {
+                    console.warn('HD тоже не удался, оставляем дефолт:', e2?.message);
                 }
             }
         }
@@ -753,7 +811,6 @@
             isStopping = false;
         }
 
-        // ===== ФОНАРИК =====
         async function checkTorchSupport() {
             const btnTorch = document.getElementById('btn-torch');
             try {
@@ -794,7 +851,6 @@
             }
         }
 
-        // ===== СКАН ФАЙЛА =====
         async function onFileSelected(event) {
             const file = event.target.files?.[0];
             if (!file) return;
@@ -810,7 +866,6 @@
             event.target.value = '';
         }
 
-        // ===== УСПЕШНЫЙ СКАН =====
         function onScanSuccess(decodedText, decodedResult) {
             const rawText = String(decodedText);
             const now = Date.now();
@@ -894,9 +949,6 @@
             addToHistory({ text: displayText, rawText: gs1RawData, type: 'scan' });
         }
 
-        // ============================================================
-        //  ОЧИСТКА ТЕКСТА
-        // ============================================================
         function cleanScanText(text) {
             if (!text) return '';
             let cleaned = String(text);
@@ -917,9 +969,6 @@
             return String(text).replace(/^\](d2|Q3|e0|C1)/, '');
         }
 
-        // ============================================================
-        //  ПЕРЕХОД В ГЕНЕРАТОР
-        // ============================================================
         function useScannedText(text, rawText = null) {
             switchTab('generator');
             const input = document.getElementById('qr-text');
@@ -1025,9 +1074,6 @@
             });
         }
 
-        // ============================================================
-        //  ПОДЕЛИТЬСЯ / СКАЧАТЬ
-        // ============================================================
         async function shareText(text) {
             if (navigator.share) {
                 try {
@@ -1080,9 +1126,6 @@
             }, 'image/png');
         }
 
-        // ============================================================
-        //  TOAST
-        // ============================================================
         function showToast(message) {
             let toast = document.getElementById('app-toast');
             if (!toast) {
@@ -1136,18 +1179,37 @@
             saveHistory(history);
         }
 
+        function initHistoryControls() {
+            document.getElementById('clear-all-btn').addEventListener('click', () => {
+                const count = getHistory().length;
+                if (count === 0) return;
+
+                const confirmed = confirm(
+                    `Очистить всю историю?\n\nБудет удалено записей: ${count}.\nЭто действие нельзя отменить.`
+                );
+                if (!confirmed) return;
+
+                saveHistory([]);
+                renderHistory();
+                showToast('🗑 История очищена');
+            });
+        }
+
         function renderHistory() {
             const list = document.getElementById('history-list');
             const emptyMsg = document.getElementById('empty-history');
+            const clearAllBtn = document.getElementById('clear-all-btn');
             const history = getHistory();
 
             list.innerHTML = '';
 
             if (history.length === 0) {
                 emptyMsg.style.display = 'block';
+                clearAllBtn.style.display = 'none';
                 return;
             }
             emptyMsg.style.display = 'none';
+            clearAllBtn.style.display = 'flex';
 
             history.forEach((item, index) => {
                 const li = document.createElement('li');
@@ -1171,9 +1233,13 @@
                 textSpan.className = 'history-item-text';
                 textSpan.textContent = item.text;
 
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'history-actions';
+
                 const regenBtn = document.createElement('button');
                 regenBtn.className = item.rawText ? 'regen-btn gs1' : 'regen-btn';
                 regenBtn.textContent = '↻';
+                regenBtn.title = item.rawText ? 'Сгенерировать GS1 QR' : 'Сгенерировать QR';
                 regenBtn.onclick = (e) => {
                     e.stopPropagation();
                     useScannedText(item.text, item.rawText || null);
@@ -1182,29 +1248,37 @@
                 const delBtn = document.createElement('button');
                 delBtn.className = 'delete-btn';
                 delBtn.textContent = '✕';
+                delBtn.title = 'Удалить запись';
                 delBtn.onclick = (e) => {
                     e.stopPropagation();
                     deleteHistoryItem(index);
                 };
 
+                actionsDiv.appendChild(regenBtn);
+                actionsDiv.appendChild(delBtn);
+
                 li.appendChild(labelsDiv);
                 li.appendChild(textSpan);
-                li.appendChild(regenBtn);
-                li.appendChild(delBtn);
+                li.appendChild(actionsDiv);
                 list.appendChild(li);
             });
         }
 
         function deleteHistoryItem(index) {
             const history = getHistory();
+            const item = history[index];
+            if (!item) return;
+
+            const preview = item.text.length > 60 ? item.text.substring(0, 60) + '…' : item.text;
+            const confirmed = confirm(`Удалить эту запись?\n\n«${preview}»\n\nЭто действие нельзя отменить.`);
+            if (!confirmed) return;
+
             history.splice(index, 1);
             saveHistory(history);
             renderHistory();
+            showToast('🗑 Запись удалена');
         }
 
-        // ============================================================
-        //  УТИЛИТЫ
-        // ============================================================
         function escapeHtml(str) {
             return String(str)
                 .replace(/&/g, '&amp;')
