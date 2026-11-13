@@ -2,215 +2,501 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR-Сканер и Генератор</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QR-Инструменты</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        /* ===== НОВЫЙ ДИЗАЙН ===== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f4f7f6;
-            color: #333;
-            padding: 20px;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0f0f1a;
+            color: #e8e8f0;
+            min-height: 100vh;
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
         }
-        .container {
+
+        .app {
             width: 100%;
-            max-width: 600px;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            padding: 24px;
+            max-width: 500px;
+            background: #1a1a2e;
+            border-radius: 28px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.06);
         }
-        h1 { text-align: center; margin-bottom: 24px; font-size: 1.8rem; }
-        .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+
+        /* Шапка */
+        .app-header {
+            padding: 24px 24px 16px;
+            text-align: center;
+            background: linear-gradient(180deg, #1e1e38 0%, #1a1a2e 100%);
+        }
+
+        .app-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #6c63ff, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .app-header p {
+            font-size: 0.8rem;
+            color: #6c6c8a;
+            margin-top: 4px;
+        }
+
+        /* Вкладки */
+        .tabs {
+            display: flex;
+            margin: 0 16px;
+            background: #12121f;
+            border-radius: 14px;
+            padding: 4px;
+            gap: 4px;
+        }
+
         .tab-btn {
             flex: 1;
-            padding: 12px;
+            padding: 10px 8px;
             border: none;
-            background: none;
-            font-size: 1rem;
-            cursor: pointer;
-            color: #666;
-            transition: 0.3s;
-        }
-        .tab-btn.active {
-            color: #007bff;
-            border-bottom: 3px solid #007bff;
+            background: transparent;
+            color: #6c6c8a;
+            font-size: 0.85rem;
             font-weight: 600;
+            cursor: pointer;
+            border-radius: 11px;
+            transition: all 0.25s ease;
         }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
 
-        /* Стили для сканера */
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
-        .scan-result {
-            padding: 12px;
-            background: #e9f7ff;
-            border-radius: 8px;
-            margin-top: 12px;
-            word-break: break-all;
-            font-size: 0.9rem;
+        .tab-btn.active {
+            background: #2a2a45;
+            color: #a78bfa;
+            box-shadow: 0 2px 8px rgba(108, 99, 255, 0.2);
         }
-        .result-row {
+
+        .tab-content {
+            display: none;
+            padding: 20px 20px 24px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* ===== СКАНЕР ===== */
+        #reader {
+            width: 100%;
+            border-radius: 18px;
+            overflow: hidden;
+            margin-bottom: 14px;
+            background: #0a0a14;
+            min-height: 240px;
+        }
+
+        /* Стили для видео внутри #reader */
+        #reader video {
+            border-radius: 18px;
+            object-fit: cover;
+        }
+
+        .scanner-controls {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
             gap: 10px;
+            margin-bottom: 14px;
             flex-wrap: wrap;
         }
-        .result-text {
+
+        .scanner-controls button {
             flex: 1;
-            min-width: 150px;
+            min-width: 120px;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 14px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
+
+        .btn-start {
+            background: linear-gradient(135deg, #6c63ff, #8b7cf6);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(108, 99, 255, 0.35);
+        }
+
+        .btn-start:active {
+            transform: scale(0.97);
+        }
+
+        .btn-start:disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .btn-file {
+            background: #2a2a45;
+            color: #c8c8e0;
+        }
+
+        .btn-file:active {
+            transform: scale(0.97);
+        }
+
+        .btn-torch {
+            background: #2a2a45;
+            color: #f0c040;
+            flex: 0 0 auto;
+            min-width: 52px;
+            padding: 12px;
+        }
+
+        .btn-torch.active {
+            background: #f0c040;
+            color: #1a1a2e;
+            box-shadow: 0 4px 16px rgba(240, 192, 64, 0.4);
+        }
+
+        .btn-torch:disabled {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        /* Результат сканирования */
+        .scan-result {
+            padding: 14px 16px;
+            background: #12121f;
+            border-radius: 14px;
+            margin-top: 12px;
+            font-size: 0.88rem;
+            line-height: 1.5;
+            word-break: break-all;
+            border: 1px solid rgba(108, 99, 255, 0.15);
+        }
+
+        .scan-result strong {
+            color: #a78bfa;
+        }
+
         .result-actions {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
-        }
-        .btn-small {
-            padding: 8px 14px;
-            font-size: 0.85rem;
-            background: #fd7e14;
-            white-space: nowrap;
-        }
-        .btn-small:hover { background: #d9640a; }
-        .btn-share {
-            background: #17a2b8;
-        }
-        .btn-share:hover { background: #138496; }
-        .gs1-badge {
-            display: inline-block;
-            background: #6f42c1;
-            color: #fff;
-            font-size: 0.65rem;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-right: 6px;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-            vertical-align: middle;
-        }
-        .raw-details {
-            margin-top: 6px;
-            font-size: 0.8rem;
-        }
-        .raw-details summary {
-            cursor: pointer;
-            color: #007bff;
-            user-select: none;
-        }
-        .raw-details code {
-            display: block;
-            padding: 6px 8px;
-            background: #fff;
-            border-radius: 4px;
-            margin-top: 4px;
-            word-break: break-all;
-            font-family: 'Courier New', monospace;
-            font-size: 0.75rem;
-            color: #333;
+            margin-top: 10px;
         }
 
-        /* Стили для генератора */
-        .gen-input-group { display: flex; gap: 10px; margin-bottom: 16px; }
+        .result-actions button {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-regen {
+            background: #6c63ff;
+            color: #fff;
+        }
+
+        .btn-gs1 {
+            background: #8b5cf6;
+            color: #fff;
+        }
+
+        .btn-share {
+            background: #17a2b8;
+            color: #fff;
+        }
+
+        .gs1-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+            color: #fff;
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        .raw-details {
+            margin-top: 8px;
+            font-size: 0.78rem;
+        }
+
+        .raw-details summary {
+            cursor: pointer;
+            color: #6c63ff;
+            user-select: none;
+        }
+
+        .raw-details code {
+            display: block;
+            padding: 8px 10px;
+            background: #0a0a14;
+            border-radius: 8px;
+            margin-top: 6px;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            color: #c8c8e0;
+        }
+
+        /* ===== ГЕНЕРАТОР ===== */
+        .gen-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
         #qr-text {
             flex: 1;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 1rem;
+            padding: 14px 16px;
+            border: 1px solid #2a2a45;
+            border-radius: 14px;
+            font-size: 0.9rem;
+            background: #12121f;
+            color: #e8e8f0;
+            outline: none;
+            transition: border-color 0.2s;
         }
-        button {
-            padding: 12px 20px;
-            background: #007bff;
-            color: white;
+
+        #qr-text:focus {
+            border-color: #6c63ff;
+        }
+
+        #qr-text::placeholder {
+            color: #5a5a7a;
+        }
+
+        .btn-generate {
+            padding: 14px 20px;
             border: none;
-            border-radius: 8px;
-            font-size: 1rem;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #6c63ff, #8b7cf6);
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
             cursor: pointer;
-            transition: 0.3s;
+            box-shadow: 0 4px 16px rgba(108, 99, 255, 0.3);
+            transition: 0.2s;
+            white-space: nowrap;
         }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        .btn-generate:active {
+            transform: scale(0.97);
+        }
+
+        .gen-options {
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+        }
+
+        .gen-options label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+            color: #a0a0c0;
+        }
+
+        .gen-options input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #6c63ff;
+            cursor: pointer;
+        }
+
+        .gen-options .hint {
+            display: block;
+            color: #5a5a7a;
+            font-size: 0.72rem;
+            margin-top: 4px;
+            margin-left: 26px;
+        }
+
         #qr-canvas-container {
             display: flex;
             justify-content: center;
             margin: 16px 0;
-            min-height: 200px;
+            min-height: 180px;
             align-items: center;
         }
-        #qr-canvas-container canvas, #qr-canvas-container img {
+
+        #qr-canvas-container canvas,
+        #qr-canvas-container img {
             max-width: 100%;
             height: auto;
-            border-radius: 8px;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
+
         .qr-actions {
             display: flex;
             justify-content: center;
             gap: 10px;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
             flex-wrap: wrap;
         }
-        #share-qr-btn { background: #17a2b8; }
-        #share-qr-btn:hover { background: #138496; }
-        #download-qr-btn { background: #6c757d; }
-        #download-qr-btn:hover { background: #5a6268; }
 
-        /* Стили для истории */
-        #history-list { list-style: none; }
+        .qr-actions button {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        #share-qr-btn {
+            background: #17a2b8;
+            color: #fff;
+        }
+
+        #download-qr-btn {
+            background: #2a2a45;
+            color: #c8c8e0;
+        }
+
+        /* ===== ИСТОРИЯ ===== */
+        #history-list {
+            list-style: none;
+        }
+
         #history-list li {
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 8px;
+            background: #12121f;
+            padding: 14px 16px;
+            border-radius: 14px;
             margin-bottom: 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             word-break: break-all;
+            border: 1px solid rgba(255, 255, 255, 0.04);
         }
-        .history-item-text { flex: 1; margin-right: 10px; }
-        .history-item-type {
-            font-size: 0.7rem;
-            padding: 2px 6px;
-            border-radius: 4px;
-            color: white;
+
+        .history-labels {
+            display: flex;
+            gap: 4px;
             margin-right: 8px;
+            flex-shrink: 0;
+        }
+
+        .history-item-text {
+            flex: 1;
+            margin-right: 10px;
+            color: #c8c8e0;
+        }
+
+        .history-item-type {
+            font-size: 0.65rem;
+            padding: 2px 7px;
+            border-radius: 5px;
+            color: #fff;
             text-transform: uppercase;
+            font-weight: 700;
             white-space: nowrap;
         }
-        .type-scan { background: #28a745; }
-        .type-generate { background: #fd7e14; }
+
+        .type-scan {
+            background: #28a745;
+        }
+
+        .type-generate {
+            background: #fd7e14;
+        }
+
+        .type-gs1 {
+            background: #8b5cf6;
+        }
+
+        .delete-btn,
+        .regen-btn {
+            padding: 5px 9px;
+            font-size: 0.75rem;
+            border-radius: 7px;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: 700;
+        }
+
         .delete-btn {
             background: #dc3545;
-            padding: 4px 8px;
-            font-size: 0.8rem;
-            border-radius: 4px;
-            border: none;
-            cursor: pointer;
-            transition: 0.3s;
+            color: #fff;
         }
-        .delete-btn:hover { background: #a71d2a; }
+
         .regen-btn {
-            background: #fd7e14;
-            color: white;
-            padding: 4px 8px;
-            font-size: 0.8rem;
-            border-radius: 4px;
-            margin-right: 6px;
-            border: none;
-            cursor: pointer;
-            transition: 0.3s;
+            background: #6c63ff;
+            color: #fff;
+            margin-right: 5px;
         }
-        .regen-btn:hover { background: #d9640a; }
-        .empty-history { text-align: center; color: #888; padding: 20px; }
+
+        .regen-btn.gs1 {
+            background: #8b5cf6;
+        }
+
+        .empty-history {
+            text-align: center;
+            color: #5a5a7a;
+            padding: 30px 20px;
+            font-size: 0.9rem;
+        }
+
+        /* Toast */
+        #app-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2a2a45;
+            color: #e8e8f0;
+            padding: 12px 22px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            pointer-events: none;
+            max-width: 90%;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Скрытый input для файла */
+        #file-input {
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📷 QR-Инструменты</h1>
+    <div class="app">
+        <header class="app-header">
+            <h1>📷 QR-Инструменты</h1>
+            <p>Сканер · Генератор · История</p>
+        </header>
 
         <div class="tabs">
             <button class="tab-btn active" data-tab="scanner">Сканер</button>
@@ -218,27 +504,50 @@
             <button class="tab-btn" data-tab="history">История</button>
         </div>
 
+        <!-- ===== СКАНЕР ===== -->
         <div id="scanner" class="tab-content active">
             <div id="reader"></div>
-            <div id="scan-result-container" class="scan-result" style="display:none;"></div>
+
+            <div class="scanner-controls">
+                <button id="btn-start" class="btn-start">▶ Старт сканирования</button>
+                <button id="btn-file" class="btn-file">📁 Скан файла</button>
+                <button id="btn-torch" class="btn-torch" disabled title="Фонарик">🔦</button>
+            </div>
+
+            <input type="file" id="file-input" accept="image/*" capture="environment">
+
+            <div id="scan-result-container" class="scan-result" style="display: none;"></div>
         </div>
 
+        <!-- ===== ГЕНЕРАТОР ===== -->
         <div id="generator" class="tab-content">
             <div class="gen-input-group">
                 <input type="text" id="qr-text" placeholder="Введите текст или ссылку...">
-                <button id="generate-btn">Создать</button>
+                <button id="generate-btn" class="btn-generate">Создать</button>
             </div>
+
+            <div class="gen-options">
+                <label>
+                    <input type="checkbox" id="gs1-mode-checkbox">
+                    GS1-режим (FNC1)
+                </label>
+                <span class="hint">Добавляет исходные разделители FNC1 в QR-код (визуально не видны)</span>
+            </div>
+
             <div id="qr-canvas-container"></div>
-            <div id="qr-actions" class="qr-actions" style="display:none;">
+
+            <div id="qr-actions" class="qr-actions" style="display: none;">
                 <button id="share-qr-btn" type="button">📤 Поделиться</button>
                 <button id="download-qr-btn" type="button">💾 Скачать PNG</button>
             </div>
-            <div id="gen-result" class="scan-result" style="display:none;"></div>
+
+            <div id="gen-result" class="scan-result" style="display: none;"></div>
         </div>
 
+        <!-- ===== ИСТОРИЯ ===== -->
         <div id="history" class="tab-content">
             <ul id="history-list"></ul>
-            <div id="empty-history" class="empty-history" style="display:none;">История пуста.</div>
+            <div id="empty-history" class="empty-history" style="display: none;">История пуста</div>
         </div>
     </div>
 
@@ -246,6 +555,23 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.4.4/qrcode.min.js"></script>
 
     <script>
+        // ============================================================
+        //  СОСТОЯНИЕ
+        // ============================================================
+        let html5QrCode = null;          // экземпляр Html5Qrcode (низкоуровневый API)
+        let isScanning = false;
+        let torchOn = false;
+        let torchSupported = false;
+        let lastScanText = '';
+        let lastScanTime = 0;
+        const SCAN_DEBOUNCE_MS = 3000;
+
+        let lastGeneratedCanvas = null;
+        let lastGeneratedText = '';
+
+        // ============================================================
+        //  ИНИЦИАЛИЗАЦИЯ
+        // ============================================================
         document.addEventListener('DOMContentLoaded', () => {
             initTabs();
             initScanner();
@@ -253,7 +579,9 @@
             renderHistory();
         });
 
-        // --- Логика вкладок ---
+        // ============================================================
+        //  ВКЛАДКИ
+        // ============================================================
         function switchTab(tabId) {
             document.querySelectorAll('.tab-btn').forEach(b => {
                 b.classList.toggle('active', b.dataset.tab === tabId);
@@ -262,14 +590,9 @@
                 c.classList.toggle('active', c.id === tabId);
             });
 
-            if (html5QrcodeScanner) {
-                try {
-                    if (tabId === 'scanner') {
-                        html5QrcodeScanner.resume();
-                    } else {
-                        html5QrcodeScanner.pause(true);
-                    }
-                } catch (e) {}
+            // При уходе со сканера — останавливаем камеру (и фонарик)
+            if (tabId !== 'scanner' && isScanning) {
+                stopScanning();
             }
 
             if (tabId === 'history') renderHistory();
@@ -281,62 +604,163 @@
             });
         }
 
-        // --- Очистка текста от служебных символов ---
-        function cleanScanText(text) {
-            if (!text) return '';
-            let cleaned = String(text);
-
-            // 1. Убираем symbology identifier prefix (]d2, ]Q3, ]C1, ]e0 и т.п.)
-            cleaned = cleaned.replace(/^\][A-Za-z]\d/, '');
-
-            // 2. FNC1 / GS (ASCII 29, \x1D) → видимый разделитель
-            cleaned = cleaned.replace(/\x1D/g, ' | ');
-
-            // 3. Прочие управляющие символы (кроме \t и \n)
-            cleaned = cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-
-            // 4. Убираем двойные пробелы от предыдущих замен
-            cleaned = cleaned.replace(/ {2,}/g, ' ');
-
-            return cleaned.trim();
-        }
-
-        function isGS1Text(text) {
-            return /\x1D/.test(String(text));
-        }
-
-        // --- Сканер ---
-        let html5QrcodeScanner = null;
-        let lastScanText = '';
-        let lastScanTime = 0;
-        const SCAN_DEBOUNCE_MS = 3000;
-
+        // ============================================================
+        //  СКАНЕР
+        // ============================================================
         function initScanner() {
+            // Низкоуровневый API — полный контроль над UI и камерой
+            html5QrCode = new Html5Qrcode("reader");
+
+            document.getElementById('btn-start').addEventListener('click', startScanning);
+            document.getElementById('btn-file').addEventListener('click', () => {
+                document.getElementById('file-input').click();
+            });
+            document.getElementById('file-input').addEventListener('change', onFileSelected);
+            document.getElementById('btn-torch').addEventListener('click', toggleTorch);
+
+            // При уходе со страницы/сворачивании — останавливаем камеру
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && isScanning) {
+                    stopScanning();
+                }
+            });
+        }
+
+        async function startScanning() {
+            if (isScanning) return;
+
+            const btnStart = document.getElementById('btn-start');
+            const btnTorch = document.getElementById('btn-torch');
+
+            btnStart.disabled = true;
+            btnStart.textContent = '⏳ Запуск...';
+
             try {
-                html5QrcodeScanner = new Html5QrcodeScanner(
-                    "reader",
+                // facingMode: "environment" = задняя камера, без выбора
+                await html5QrCode.start(
+                    { facingMode: "environment" },
                     {
                         fps: 10,
-                        qrbox: { width: 250, height: 250 },
-                        formatsToSupport: [
-                            Html5QrcodeSupportedFormats.QR_CODE,
-                            Html5QrcodeSupportedFormats.DATA_MATRIX
-                        ],
-                        useBarCodeDetectorIfSupported: false
+                        qrbox: { width: 220, height: 220 },
+                        aspectRatio: 1.0
                     },
-                    false
+                    onScanSuccess,
+                    onScanError
                 );
-                html5QrcodeScanner.render(onScanSuccess, onScanError);
-            } catch (e) {
-                console.error('Не удалось инициализировать сканер:', e);
-                const reader = document.getElementById('reader');
-                if (reader) {
-                    reader.innerHTML = '<p style="padding:16px;color:#c00;text-align:center;">' +
-                        'Не удалось запустить камеру. Проверьте разрешения и что страница открыта по HTTPS.</p>';
-                }
+
+                isScanning = true;
+                btnStart.textContent = '⏹ Остановить';
+                btnStart.disabled = false;
+
+                // Проверяем поддержку фонарика после запуска камеры
+                await checkTorchSupport();
+
+            } catch (err) {
+                console.error('Ошибка запуска камеры:', err);
+                btnStart.textContent = '▶ Старт сканирования';
+                btnStart.disabled = false;
+                alert('Не удалось запустить камеру. Проверьте разрешения и что страница открыта по HTTPS.');
             }
         }
 
+        async function stopScanning() {
+            if (!isScanning) return;
+
+            // Выключаем фонарик перед остановкой
+            if (torchOn) {
+                await setTorch(false);
+            }
+
+            try {
+                await html5QrCode.stop();
+            } catch (e) {
+                // игнорируем ошибки остановки
+            }
+
+            isScanning = false;
+            const btnStart = document.getElementById('btn-start');
+            btnStart.textContent = '▶ Старт сканирования';
+            btnStart.disabled = false;
+
+            // Сбрасываем состояние фонарика
+            torchSupported = false;
+            torchOn = false;
+            const btnTorch = document.getElementById('btn-torch');
+            btnTorch.disabled = true;
+            btnTorch.classList.remove('active');
+        }
+
+        // ===== ФОНАРИК =====
+        async function checkTorchSupport() {
+            const btnTorch = document.getElementById('btn-torch');
+            try {
+                // Проверяем через MediaStreamTrack capabilities
+                const stream = document.querySelector('#reader video')?.srcObject;
+                const track = stream?.getVideoTracks?.()[0];
+                if (track && track.getCapabilities) {
+                    const caps = track.getCapabilities();
+                    torchSupported = !!caps.torch;
+                } else {
+                    torchSupported = false;
+                }
+            } catch (e) {
+                torchSupported = false;
+            }
+
+            btnTorch.disabled = !torchSupported;
+            if (torchSupported) {
+                btnTorch.title = 'Включить фонарик';
+            } else {
+                btnTorch.title = 'Фонарик не поддерживается на этом устройстве';
+            }
+        }
+
+        async function toggleTorch() {
+            if (!torchSupported || !isScanning) return;
+            await setTorch(!torchOn);
+        }
+
+        async function setTorch(on) {
+            const btnTorch = document.getElementById('btn-torch');
+            try {
+                await html5QrCode.applyVideoConstraints({
+                    advanced: [{ torch: on }]
+                });
+                torchOn = on;
+                btnTorch.classList.toggle('active', on);
+                btnTorch.title = on ? 'Выключить фонарик' : 'Включить фонарик';
+            } catch (e) {
+                console.warn('Не удалось переключить фонарик:', e);
+                showToast('Фонарик недоступен на этом устройстве');
+                torchSupported = false;
+                btnTorch.disabled = true;
+            }
+        }
+
+        // ===== СКАН ФАЙЛА =====
+        async function onFileSelected(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+
+            // Если камера работает — останавливаем
+            if (isScanning) {
+                await stopScanning();
+            }
+
+            try {
+                const result = await html5QrCode.scanFile(file, true);
+                // scanFile возвращает строку (decodedText)
+                handleScanResult(result, null);
+            } catch (err) {
+                console.error('Ошибка сканирования файла:', err);
+                alert('Не удалось распознать код на изображении. Попробуйте другое фото.');
+            }
+
+            // Сбрасываем input, чтобы можно было выбрать тот же файл снова
+            event.target.value = '';
+        }
+
+        // ===== УСПЕШНЫЙ СКАН =====
         function onScanSuccess(decodedText, decodedResult) {
             const rawText = String(decodedText);
             const now = Date.now();
@@ -344,8 +768,22 @@
             lastScanText = rawText;
             lastScanTime = now;
 
+            // ✅ Автоматически выключаем фонарик после успешного скана
+            if (torchOn) {
+                setTorch(false);
+            }
+
+            handleScanResult(rawText, decodedResult);
+        }
+
+        function onScanError(err) {
+            // игнорируем ошибки сканирования
+        }
+
+        function handleScanResult(rawText, decodedResult) {
             const displayText = cleanScanText(rawText);
-            const gs1 = isGS1Text(rawText);
+            const isGS1 = isGS1Text(rawText);
+            const gs1RawData = isGS1 ? stripSymbologyPrefix(rawText) : null;
             const hasHidden = rawText !== displayText;
 
             const resultContainer = document.getElementById('scan-result-container');
@@ -358,12 +796,10 @@
             const textWrap = document.createElement('div');
             textWrap.className = 'result-text';
 
-            // Бейдж GS1
-            if (gs1) {
+            if (isGS1) {
                 const badge = document.createElement('span');
                 badge.className = 'gs1-badge';
                 badge.textContent = 'GS1';
-                badge.title = 'GS1 DataMatrix: разделители FNC1 показаны как |';
                 textWrap.appendChild(badge);
             }
 
@@ -371,69 +807,124 @@
             textSpan.innerHTML = `<strong>Результат:</strong> ${escapeHtml(displayText)}`;
             textWrap.appendChild(textSpan);
 
-            // Раскрывающийся блок с исходными данными (если есть скрытые символы)
             if (hasHidden) {
                 const details = document.createElement('details');
                 details.className = 'raw-details';
-
                 const summary = document.createElement('summary');
                 summary.textContent = 'Показать исходные данные';
-
                 const rawCode = document.createElement('code');
-                // Показываем FNC1 как видимый маркер ␝
                 rawCode.textContent = rawText.replace(/\x1D/g, '␝');
-
                 details.appendChild(summary);
                 details.appendChild(rawCode);
                 textWrap.appendChild(details);
             }
 
-            // Кнопки
             const actions = document.createElement('div');
             actions.className = 'result-actions';
 
             const genBtn = document.createElement('button');
-            genBtn.className = 'btn-small';
-            genBtn.textContent = '↻ Сгенерировать';
-            genBtn.title = 'Создать QR-код из этого текста';
-            genBtn.onclick = () => useScannedText(displayText);
+            genBtn.className = 'btn-regen';
+            genBtn.textContent = '↻ QR';
+            genBtn.onclick = () => useScannedText(displayText, null);
+            actions.appendChild(genBtn);
+
+            if (isGS1 && gs1RawData) {
+                const gs1Btn = document.createElement('button');
+                gs1Btn.className = 'btn-gs1';
+                gs1Btn.textContent = '↻ GS1 QR';
+                gs1Btn.onclick = () => useScannedText(displayText, gs1RawData);
+                actions.appendChild(gs1Btn);
+            }
 
             const shareBtn = document.createElement('button');
-            shareBtn.className = 'btn-small btn-share';
+            shareBtn.className = 'btn-share';
             shareBtn.textContent = '📤 Поделиться';
-            shareBtn.title = 'Поделиться в другом приложении';
             shareBtn.onclick = () => shareText(displayText);
-
-            actions.appendChild(genBtn);
             actions.appendChild(shareBtn);
+
             row.appendChild(textWrap);
             row.appendChild(actions);
             resultContainer.appendChild(row);
 
-            // В историю сохраняем ОЧИЩЕННЫЙ текст
-            addToHistory(displayText, 'scan');
+            addToHistory({
+                text: displayText,
+                rawText: gs1RawData,
+                type: 'scan'
+            });
         }
 
-        function onScanError(err) {}
+        // ============================================================
+        //  ОЧИСТКА ТЕКСТА
+        // ============================================================
+        function cleanScanText(text) {
+            if (!text) return '';
+            let cleaned = String(text);
+            cleaned = cleaned.replace(/^\](d2|Q3|e0|C1)/, '');
+            cleaned = cleaned.replace(/\x1D/g, '');       // скрываем FNC1
+            cleaned = cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+            return cleaned;
+        }
 
-        function useScannedText(text) {
+        function isGS1Text(text) {
+            const s = String(text);
+            if (/^\](d2|Q3|e0|C1)/.test(s)) return true;
+            if (/\x1D/.test(s)) return true;
+            return false;
+        }
+
+        function stripSymbologyPrefix(text) {
+            return String(text).replace(/^\](d2|Q3|e0|C1)/, '');
+        }
+
+        // ============================================================
+        //  ПЕРЕХОД В ГЕНЕРАТОР
+        // ============================================================
+        function useScannedText(text, rawText = null) {
             switchTab('generator');
-            document.getElementById('qr-text').value = text;
-            generateQR(text);
+            const input = document.getElementById('qr-text');
+            const checkbox = document.getElementById('gs1-mode-checkbox');
+
+            input.value = text;
+
+            if (rawText) {
+                input.dataset.raw = rawText;
+                checkbox.checked = true;
+            } else {
+                delete input.dataset.raw;
+                checkbox.checked = false;
+            }
+
+            generateQR();
         }
 
-        // --- Генератор ---
-        let lastGeneratedCanvas = null;
-        let lastGeneratedText = '';
-
+        // ============================================================
+        //  ГЕНЕРАТОР
+        // ============================================================
         function initGenerator() {
-            document.getElementById('generate-btn').addEventListener('click', () => {
-                const text = document.getElementById('qr-text').value.trim();
-                if (!text) {
-                    alert('Пожалуйста, введите текст или ссылку.');
-                    return;
+            document.getElementById('generate-btn').addEventListener('click', generateQR);
+
+            document.getElementById('gs1-mode-checkbox').addEventListener('change', (e) => {
+                const input = document.getElementById('qr-text');
+
+                if (e.target.checked) {
+                    if (input.value.includes('\x1D')) {
+                        input.dataset.raw = input.value;
+                    } else if (!input.dataset.raw) {
+                        e.target.checked = false;
+                        showToast('Нет GS1-данных для этого текста');
+                        return;
+                    }
+                } else {
+                    delete input.dataset.raw;
                 }
-                generateQR(text);
+
+                if (input.value.trim()) generateQR();
+            });
+
+            document.getElementById('qr-text').addEventListener('input', () => {
+                const input = document.getElementById('qr-text');
+                delete input.dataset.raw;
+                document.getElementById('gs1-mode-checkbox').checked = false;
             });
 
             document.getElementById('share-qr-btn').addEventListener('click', () => {
@@ -445,16 +936,35 @@
             });
         }
 
-        function generateQR(text) {
+        function generateQR() {
+            const input = document.getElementById('qr-text');
+            const checkbox = document.getElementById('gs1-mode-checkbox');
             const canvasContainer = document.getElementById('qr-canvas-container');
             const genResult = document.getElementById('gen-result');
             const qrActions = document.getElementById('qr-actions');
+
+            const inputText = input.value.trim();
+            if (!inputText) {
+                alert('Пожалуйста, введите текст или ссылку.');
+                return;
+            }
+
+            let textToEncode = inputText;
+            let isGS1 = false;
+
+            if (checkbox.checked && input.dataset.raw) {
+                textToEncode = input.dataset.raw;
+                isGS1 = true;
+            }
+            if (textToEncode.indexOf('\x1D') !== -1) {
+                isGS1 = true;
+            }
 
             canvasContainer.innerHTML = '';
             genResult.style.display = 'none';
             qrActions.style.display = 'none';
 
-            QRCode.toCanvas(text, { width: 200, margin: 2 }, (error, canvas) => {
+            QRCode.toCanvas(textToEncode, { width: 200, margin: 2 }, (error, canvas) => {
                 if (error) {
                     console.error(error);
                     alert('Не удалось сгенерировать QR-код.');
@@ -462,16 +972,25 @@
                 }
                 canvasContainer.appendChild(canvas);
                 lastGeneratedCanvas = canvas;
-                lastGeneratedText = text;
+                lastGeneratedText = inputText;
 
                 qrActions.style.display = 'flex';
                 genResult.style.display = 'block';
-                genResult.innerHTML = `<strong>Сгенерировано для:</strong> ${escapeHtml(text)}`;
-                addToHistory(text, 'generate');
+
+                const badge = isGS1 ? '<span class="gs1-badge">GS1</span> ' : '';
+                genResult.innerHTML = `${badge}<strong>Сгенерировано для:</strong> ${escapeHtml(inputText)}`;
+
+                addToHistory({
+                    text: inputText,
+                    rawText: isGS1 ? textToEncode : null,
+                    type: 'generate'
+                });
             });
         }
 
-        // --- Поделиться ---
+        // ============================================================
+        //  ПОДЕЛИТЬСЯ / СКАЧАТЬ
+        // ============================================================
         async function shareText(text) {
             if (navigator.share) {
                 try {
@@ -500,11 +1019,7 @@
 
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     try {
-                        await navigator.share({
-                            files: [file],
-                            title: 'QR-код',
-                            text: text
-                        });
+                        await navigator.share({ files: [file], title: 'QR-код', text: text });
                         return;
                     } catch (e) {
                         if (e.name === 'AbortError') return;
@@ -531,17 +1046,14 @@
             }, 'image/png');
         }
 
-        // --- Toast ---
+        // ============================================================
+        //  TOAST
+        // ============================================================
         function showToast(message) {
             let toast = document.getElementById('app-toast');
             if (!toast) {
                 toast = document.createElement('div');
                 toast.id = 'app-toast';
-                toast.style.cssText =
-                    'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);' +
-                    'background:#333;color:#fff;padding:10px 20px;border-radius:8px;' +
-                    'font-size:0.9rem;opacity:0;transition:opacity 0.3s;' +
-                    'z-index:1000;pointer-events:none;max-width:90%;text-align:center;';
                 document.body.appendChild(toast);
             }
             toast.textContent = message;
@@ -550,7 +1062,9 @@
             toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2200);
         }
 
-        // --- История ---
+        // ============================================================
+        //  ИСТОРИЯ
+        // ============================================================
         const HISTORY_KEY = 'qr_tool_history';
 
         function getHistory() {
@@ -577,11 +1091,12 @@
             }
         }
 
-        function addToHistory(text, type) {
+        function addToHistory(item) {
             const history = getHistory();
             history.unshift({
-                text: text,
-                type: type,
+                text: item.text,
+                rawText: item.rawText || null,
+                type: item.type,
                 timestamp: new Date().toISOString()
             });
             if (history.length > 50) history.pop();
@@ -604,22 +1119,31 @@
             history.forEach((item, index) => {
                 const li = document.createElement('li');
 
+                const labelsDiv = document.createElement('div');
+                labelsDiv.className = 'history-labels';
+
                 const typeLabel = document.createElement('span');
                 typeLabel.className = `history-item-type type-${item.type}`;
                 typeLabel.textContent = item.type === 'scan' ? 'Скан' : 'Ген';
+                labelsDiv.appendChild(typeLabel);
+
+                if (item.rawText) {
+                    const gs1Label = document.createElement('span');
+                    gs1Label.className = 'history-item-type type-gs1';
+                    gs1Label.textContent = 'GS1';
+                    labelsDiv.appendChild(gs1Label);
+                }
 
                 const textSpan = document.createElement('span');
                 textSpan.className = 'history-item-text';
-                // На всякий случай чистим и в истории (если там старые записи с \x1D)
-                textSpan.textContent = cleanScanText(item.text);
+                textSpan.textContent = item.text;
 
                 const regenBtn = document.createElement('button');
-                regenBtn.className = 'regen-btn';
+                regenBtn.className = item.rawText ? 'regen-btn gs1' : 'regen-btn';
                 regenBtn.textContent = '↻';
-                regenBtn.title = 'Сгенерировать QR из этого текста';
                 regenBtn.onclick = (e) => {
                     e.stopPropagation();
-                    useScannedText(cleanScanText(item.text));
+                    useScannedText(item.text, item.rawText || null);
                 };
 
                 const delBtn = document.createElement('button');
@@ -630,7 +1154,7 @@
                     deleteHistoryItem(index);
                 };
 
-                li.appendChild(typeLabel);
+                li.appendChild(labelsDiv);
                 li.appendChild(textSpan);
                 li.appendChild(regenBtn);
                 li.appendChild(delBtn);
@@ -645,6 +1169,9 @@
             renderHistory();
         }
 
+        // ============================================================
+        //  УТИЛИТЫ
+        // ============================================================
         function escapeHtml(str) {
             return String(str)
                 .replace(/&/g, '&amp;')
@@ -653,17 +1180,6 @@
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
         }
-
-        document.addEventListener('visibilitychange', () => {
-            if (!html5QrcodeScanner) return;
-            try {
-                if (document.hidden) {
-                    html5QrcodeScanner.pause(true);
-                } else if (document.querySelector('.tab-btn.active')?.dataset.tab === 'scanner') {
-                    html5QrcodeScanner.resume();
-                }
-            } catch (e) {}
-        });
     </script>
 </body>
 </html>
