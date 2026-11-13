@@ -188,34 +188,122 @@
             overflow-y: auto;
         }
 
-        .scan-result {
-            padding: 14px 16px;
-            background: #12121f;
-            border-radius: 14px;
-            margin-top: 12px;
-            font-size: 0.88rem;
-            line-height: 1.5;
-            word-break: break-all;
-            border: 1px solid rgba(108, 99, 255, 0.15);
+        /* ===== МОДАЛКА ===== */
+        .scan-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            -webkit-backdrop-filter: blur(6px);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 900;
+            padding: 20px;
+            animation: fadeIn 0.2s ease;
+            overscroll-behavior: contain;
         }
 
-        .scan-result strong { color: #a78bfa; }
+        .scan-modal-overlay.show { display: flex; }
 
-        .result-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
 
-        .result-actions button {
-            padding: 8px 14px;
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .scan-modal {
+            background: #1a1a2e;
+            border-radius: 20px;
+            max-width: 480px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            padding: 20px;
+            border: 1px solid rgba(108, 99, 255, 0.25);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            animation: slideUp 0.25s ease;
+        }
+
+        .scan-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            gap: 10px;
+        }
+
+        .scan-modal-header h2 {
+            font-size: 1.05rem;
+            color: #a78bfa;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .scan-modal-close {
+            width: 34px;
+            height: 34px;
+            min-width: 34px;
+            border-radius: 50%;
+            background: #2a2a45;
+            color: #c8c8e0;
             border: none;
-            border-radius: 10px;
-            font-size: 0.8rem;
+            font-size: 1.15rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            line-height: 1;
+        }
+
+        .scan-modal-close:hover { background: #3a3a55; color: #fff; }
+        .scan-modal-close:active { transform: scale(0.92); }
+
+        .scan-modal-body {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            word-break: break-all;
+            color: #e8e8f0;
+        }
+
+        .scan-modal-body strong { color: #a78bfa; }
+
+        .scan-modal-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .scan-modal-actions button {
+            flex: 1;
+            min-width: 110px;
+            padding: 11px 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.85rem;
             font-weight: 600;
             cursor: pointer;
             transition: 0.2s;
         }
 
         .btn-regen { background: #6c63ff; color: #fff; }
+        .btn-regen:hover { background: #5750d6; }
         .btn-gs1 { background: #8b5cf6; color: #fff; }
+        .btn-gs1:hover { background: #7c3aed; }
         .btn-share { background: #17a2b8; color: #fff; }
+        .btn-share:hover { background: #138496; }
 
         .gs1-badge {
             display: inline-block;
@@ -230,7 +318,7 @@
             vertical-align: middle;
         }
 
-        .raw-details { margin-top: 8px; font-size: 0.78rem; }
+        .raw-details { margin-top: 10px; font-size: 0.78rem; }
         .raw-details summary { cursor: pointer; color: #6c63ff; user-select: none; }
         .raw-details code {
             display: block;
@@ -244,6 +332,7 @@
             color: #c8c8e0;
         }
 
+        /* ===== ГЕНЕРАТОР ===== */
         .gen-input-group { display: flex; gap: 10px; margin-bottom: 12px; }
 
         #qr-text {
@@ -276,6 +365,7 @@
         }
 
         .btn-generate:active { transform: scale(0.97); }
+        .btn-generate:disabled { opacity: 0.5; pointer-events: none; }
 
         .gen-options { margin-bottom: 16px; font-size: 0.85rem; }
         .gen-options label { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; color: #a0a0c0; }
@@ -313,6 +403,20 @@
         #share-qr-btn { background: #17a2b8; color: #fff; }
         #download-qr-btn { background: #2a2a45; color: #c8c8e0; }
 
+        .gen-result {
+            padding: 14px 16px;
+            background: #12121f;
+            border-radius: 14px;
+            margin-top: 12px;
+            font-size: 0.88rem;
+            line-height: 1.5;
+            word-break: break-all;
+            border: 1px solid rgba(108, 99, 255, 0.15);
+        }
+
+        .gen-result strong { color: #a78bfa; }
+
+        /* ===== ИСТОРИЯ ===== */
         .history-header {
             display: flex;
             justify-content: flex-end;
@@ -339,9 +443,7 @@
             border-color: #dc3545;
         }
 
-        .btn-clear-all:active {
-            transform: scale(0.97);
-        }
+        .btn-clear-all:active { transform: scale(0.97); }
 
         #history-list { list-style: none; }
 
@@ -434,6 +536,15 @@
         }
 
         #file-input { display: none; }
+
+        /* ✅ Уважаем предпочтение системы */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -458,7 +569,6 @@
             </div>
             <input type="file" id="file-input" accept="image/*" capture="environment">
             <div id="scan-error" class="error-box" style="display: none;"></div>
-            <div id="scan-result-container" class="scan-result" style="display: none;"></div>
         </div>
 
         <div id="generator" class="tab-content">
@@ -478,7 +588,7 @@
                 <button id="share-qr-btn" type="button">📤 Поделиться</button>
                 <button id="download-qr-btn" type="button">💾 Скачать PNG</button>
             </div>
-            <div id="gen-result" class="scan-result" style="display: none;"></div>
+            <div id="gen-result" class="gen-result" style="display: none;"></div>
         </div>
 
         <div id="history" class="tab-content">
@@ -487,6 +597,17 @@
             </div>
             <ul id="history-list"></ul>
             <div id="empty-history" class="empty-history" style="display: none;">История пуста</div>
+        </div>
+    </div>
+
+    <div id="scan-modal-overlay" class="scan-modal-overlay">
+        <div class="scan-modal" role="dialog" aria-modal="true" aria-labelledby="scan-modal-title">
+            <div class="scan-modal-header">
+                <h2 id="scan-modal-title">✅ Результат сканирования</h2>
+                <button class="scan-modal-close" id="scan-modal-close" aria-label="Закрыть">✕</button>
+            </div>
+            <div class="scan-modal-body" id="scan-modal-body"></div>
+            <div class="scan-modal-actions" id="scan-modal-actions"></div>
         </div>
     </div>
 
@@ -517,6 +638,7 @@
             initScanner();
             initGenerator();
             initHistoryControls();
+            initScanModal();
             renderHistory();
         });
 
@@ -541,6 +663,66 @@
         }
 
         // ============================================================
+        //  МОДАЛКА (фокус-трап + блокировка скролла body)
+        // ============================================================
+        function initScanModal() {
+            document.getElementById('scan-modal-close').addEventListener('click', closeScanModal);
+
+            document.getElementById('scan-modal-overlay').addEventListener('click', (e) => {
+                if (e.target.id === 'scan-modal-overlay') closeScanModal();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                const overlay = document.getElementById('scan-modal-overlay');
+                if (!overlay.classList.contains('show')) return;
+
+                if (e.key === 'Escape') {
+                    closeScanModal();
+                    return;
+                }
+
+                // Focus trap
+                if (e.key === 'Tab') {
+                    const modal = overlay.querySelector('.scan-modal');
+                    const focusables = modal.querySelectorAll(
+                        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                    );
+                    if (focusables.length === 0) return;
+
+                    const first = focusables[0];
+                    const last = focusables[focusables.length - 1];
+
+                    if (e.shiftKey && document.activeElement === first) {
+                        e.preventDefault();
+                        last.focus();
+                    } else if (!e.shiftKey && document.activeElement === last) {
+                        e.preventDefault();
+                        first.focus();
+                    }
+                }
+            });
+        }
+
+        function openScanModal() {
+            const overlay = document.getElementById('scan-modal-overlay');
+            overlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
+
+            const modal = overlay.querySelector('.scan-modal');
+            modal.scrollTop = 0;
+
+            // Фокус на кнопку закрытия после анимации
+            setTimeout(() => {
+                document.getElementById('scan-modal-close').focus();
+            }, 100);
+        }
+
+        function closeScanModal() {
+            document.getElementById('scan-modal-overlay').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // ============================================================
         //  СКАНЕР
         // ============================================================
         function initScanner() {
@@ -550,10 +732,23 @@
             }
 
             try {
-                html5QrCode = new Html5Qrcode("reader");
+                // ✅ Ограничиваем форматы — быстрее и меньше ложных срабатываний
+                const config = { verbose: false };
+                if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+                    config.formatsToSupport = [
+                        Html5QrcodeSupportedFormats.QR_CODE,
+                        Html5QrcodeSupportedFormats.DATA_MATRIX
+                    ];
+                }
+                html5QrCode = new Html5Qrcode("reader", config);
             } catch (err) {
-                showScanError('Не удалось инициализировать сканер', err?.message || String(err));
-                return;
+                console.warn('Конфиг с форматами не принят, пробуем без него:', err?.message);
+                try {
+                    html5QrCode = new Html5Qrcode("reader");
+                } catch (e2) {
+                    showScanError('Не удалось инициализировать сканер', e2?.message || String(e2));
+                    return;
+                }
             }
 
             document.getElementById('btn-start').addEventListener('click', () => {
@@ -574,16 +769,19 @@
 
         async function startScanning() {
             if (isScanning || isStopping) return;
-            if (!html5QrCode) return;
+
+            // ✅ Явное сообщение, если сканер не инициализирован
+            if (!html5QrCode) {
+                alert('Сканер не инициализирован. Обновите страницу.');
+                return;
+            }
 
             const btnStart = document.getElementById('btn-start');
             btnStart.disabled = true;
             btnStart.textContent = '⏳ Запуск...';
 
             document.getElementById('scan-error').style.display = 'none';
-            document.getElementById('scan-result-container').style.display = 'none';
 
-            // Ранние проверки окружения
             if (!window.isSecureContext) {
                 showScanError('Небезопасное соединение', 'Камера доступна только по HTTPS или на localhost.');
                 resetStartButton();
@@ -595,11 +793,9 @@
                 return;
             }
 
-            // ✅ Безопасная остановка предыдущего запуска (если был)
             try { await html5QrCode.stop(); } catch (e) {}
             await new Promise(r => setTimeout(r, 200));
 
-            // ✅ Конфиг без width/height — только fps и qrbox
             const config = {
                 fps: 25,
                 qrbox: (vw, vh) => {
@@ -610,7 +806,6 @@
                 disableFlip: false
             };
 
-            // ✅ Один аргумент — только facingMode, без width/height
             try {
                 await html5QrCode.start(
                     { facingMode: "environment" },
@@ -625,7 +820,6 @@
                 btnStart.classList.add('is-scanning');
                 btnStart.disabled = false;
 
-                // Применяем фокус и разрешение отдельно
                 await applyContinuousFocus();
                 await applyIdealResolution();
                 await checkTorchSupport();
@@ -634,12 +828,9 @@
             } catch (err) {
                 console.warn('Запуск через facingMode не удался:', err?.name, err?.message);
 
-                // Fallback: получаем список камер и выбираем заднюю по deviceId
                 try {
                     const devices = await Html5Qrcode.getCameras();
-                    if (!devices || devices.length === 0) {
-                        throw new Error('Камеры не найдены');
-                    }
+                    if (!devices || devices.length === 0) throw new Error('Камеры не найдены');
 
                     let cameraId = devices[0].id;
                     for (const d of devices) {
@@ -651,7 +842,6 @@
                         }
                     }
 
-                    // Останавливаем перед повторным стартом
                     try { await html5QrCode.stop(); } catch (e) {}
                     await new Promise(r => setTimeout(r, 300));
 
@@ -702,17 +892,14 @@
         }
 
         async function applyContinuousFocus() {
+            if (!html5QrCode) return;
             try {
-                await html5QrCode.applyVideoConstraints({
-                    advanced: [{ focusMode: "continuous" }]
-                });
+                await html5QrCode.applyVideoConstraints({ advanced: [{ focusMode: "continuous" }] });
                 console.log('✓ Continuous focus enabled');
             } catch (e) {
                 console.warn('Continuous focus не удался:', e?.message);
                 try {
-                    await html5QrCode.applyVideoConstraints({
-                        advanced: [{ focusMode: "single-shot" }]
-                    });
+                    await html5QrCode.applyVideoConstraints({ advanced: [{ focusMode: "single-shot" }] });
                     console.log('✓ Single-shot focus enabled');
                 } catch (e2) {
                     console.warn('Focus mode недоступен:', e2?.message);
@@ -721,22 +908,17 @@
         }
 
         async function applyIdealResolution() {
+            if (!html5QrCode) return;
             try {
-                await html5QrCode.applyVideoConstraints({
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
-                });
+                await html5QrCode.applyVideoConstraints({ width: { ideal: 1920 }, height: { ideal: 1080 } });
                 console.log('✓ Full HD resolution requested');
             } catch (e) {
                 console.warn('Full HD не удался, пробуем HD:', e?.message);
                 try {
-                    await html5QrCode.applyVideoConstraints({
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    });
+                    await html5QrCode.applyVideoConstraints({ width: { ideal: 1280 }, height: { ideal: 720 } });
                     console.log('✓ HD resolution requested');
                 } catch (e2) {
-                    console.warn('HD тоже не удался, оставляем дефолт:', e2?.message);
+                    console.warn('HD тоже не удался:', e2?.message);
                 }
             }
         }
@@ -755,6 +937,9 @@
         }
 
         function showScanError(title, message, details) {
+            // ✅ Если открыта модалка — закроем её, чтобы ошибка была видна
+            closeScanModal();
+
             const box = document.getElementById('scan-error');
             box.style.display = 'block';
             box.innerHTML = '';
@@ -782,6 +967,10 @@
         async function stopScanning() {
             if (isStopping) return;
             if (!isScanning) return;
+            if (!html5QrCode) {
+                resetStartButton();
+                return;
+            }
 
             isStopping = true;
             isScanning = false;
@@ -790,11 +979,8 @@
                 try { await setTorch(false); } catch (e) {}
             }
 
-            try {
-                await html5QrCode.stop();
-            } catch (e) {
-                console.warn('Ошибка остановки камеры:', e);
-            }
+            try { await html5QrCode.stop(); }
+            catch (e) { console.warn('Ошибка остановки камеры:', e); }
 
             lastScanText = '';
             lastScanTime = 0;
@@ -835,11 +1021,10 @@
         }
 
         async function setTorch(on) {
+            if (!html5QrCode) return;
             const btnTorch = document.getElementById('btn-torch');
             try {
-                await html5QrCode.applyVideoConstraints({
-                    advanced: [{ torch: on }]
-                });
+                await html5QrCode.applyVideoConstraints({ advanced: [{ torch: on }] });
                 torchOn = on;
                 btnTorch.classList.toggle('active', on);
                 btnTorch.title = on ? 'Выключить фонарик' : 'Включить фонарик';
@@ -856,6 +1041,7 @@
             if (!file) return;
             if (isScanning) await stopScanning();
             document.getElementById('scan-error').style.display = 'none';
+
             try {
                 const result = await html5QrCode.scanFile(file, true);
                 handleScanResult(result, null);
@@ -873,9 +1059,8 @@
             lastScanText = rawText;
             lastScanTime = now;
 
-            handleScanResult(rawText, decodedResult);
-
             if (isScanning) stopScanning();
+            handleScanResult(rawText, decodedResult);
         }
 
         function onScanError(err) {}
@@ -886,26 +1071,22 @@
             const gs1RawData = isGS1 ? stripSymbologyPrefix(rawText) : null;
             const hasHidden = rawText !== displayText;
 
-            const resultContainer = document.getElementById('scan-result-container');
-            resultContainer.style.display = 'block';
-            resultContainer.innerHTML = '';
+            const bodyEl = document.getElementById('scan-modal-body');
+            const actionsEl = document.getElementById('scan-modal-actions');
+            bodyEl.innerHTML = '';
+            actionsEl.innerHTML = '';
 
-            const row = document.createElement('div');
-            row.className = 'result-row';
-
-            const textWrap = document.createElement('div');
-            textWrap.className = 'result-text';
-
+            const wrap = document.createElement('div');
             if (isGS1) {
                 const badge = document.createElement('span');
                 badge.className = 'gs1-badge';
                 badge.textContent = 'GS1';
-                textWrap.appendChild(badge);
+                wrap.appendChild(badge);
             }
-
             const textSpan = document.createElement('span');
             textSpan.innerHTML = `<strong>Результат:</strong> ${escapeHtml(displayText)}`;
-            textWrap.appendChild(textSpan);
+            wrap.appendChild(textSpan);
+            bodyEl.appendChild(wrap);
 
             if (hasHidden) {
                 const details = document.createElement('details');
@@ -916,36 +1097,30 @@
                 rawCode.textContent = rawText.replace(/\x1D/g, '␝');
                 details.appendChild(summary);
                 details.appendChild(rawCode);
-                textWrap.appendChild(details);
+                bodyEl.appendChild(details);
             }
-
-            const actions = document.createElement('div');
-            actions.className = 'result-actions';
 
             const genBtn = document.createElement('button');
             genBtn.className = 'btn-regen';
             genBtn.textContent = '↻ QR';
-            genBtn.onclick = () => useScannedText(displayText, null);
-            actions.appendChild(genBtn);
+            genBtn.onclick = () => { closeScanModal(); useScannedText(displayText, null); };
+            actionsEl.appendChild(genBtn);
 
             if (isGS1 && gs1RawData) {
                 const gs1Btn = document.createElement('button');
                 gs1Btn.className = 'btn-gs1';
                 gs1Btn.textContent = '↻ GS1 QR';
-                gs1Btn.onclick = () => useScannedText(displayText, gs1RawData);
-                actions.appendChild(gs1Btn);
+                gs1Btn.onclick = () => { closeScanModal(); useScannedText(displayText, gs1RawData); };
+                actionsEl.appendChild(gs1Btn);
             }
 
             const shareBtn = document.createElement('button');
             shareBtn.className = 'btn-share';
             shareBtn.textContent = '📤 Поделиться';
             shareBtn.onclick = () => shareText(displayText);
-            actions.appendChild(shareBtn);
+            actionsEl.appendChild(shareBtn);
 
-            row.appendChild(textWrap);
-            row.appendChild(actions);
-            resultContainer.appendChild(row);
-
+            openScanModal();
             addToHistory({ text: displayText, rawText: gs1RawData, type: 'scan' });
         }
 
@@ -1030,12 +1205,17 @@
             const canvasContainer = document.getElementById('qr-canvas-container');
             const genResult = document.getElementById('gen-result');
             const qrActions = document.getElementById('qr-actions');
+            const generateBtn = document.getElementById('generate-btn');
 
             const inputText = input.value.trim();
             if (!inputText) {
                 alert('Пожалуйста, введите текст или ссылку.');
                 return;
             }
+
+            // ✅ Защита от двойного клика
+            if (generateBtn.disabled) return;
+            generateBtn.disabled = true;
 
             let textToEncode = inputText;
             let isGS1 = false;
@@ -1051,6 +1231,8 @@
             qrActions.style.display = 'none';
 
             QRCode.toCanvas(textToEncode, { width: 200, margin: 2 }, (error, canvas) => {
+                generateBtn.disabled = false;
+
                 if (error) {
                     console.error(error);
                     alert('Не удалось сгенерировать QR-код.');
@@ -1131,6 +1313,9 @@
             if (!toast) {
                 toast = document.createElement('div');
                 toast.id = 'app-toast';
+                // ✅ Скринридеры озвучат уведомление
+                toast.setAttribute('role', 'status');
+                toast.setAttribute('aria-live', 'polite');
                 document.body.appendChild(toast);
             }
             toast.textContent = message;
