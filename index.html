@@ -77,6 +77,7 @@
         .tab-content { display: none; padding: 20px 20px 24px; }
         .tab-content.active { display: block; }
 
+        /* ✅ Контейнер для видео ZXing */
         #reader {
             width: 100%;
             height: 55vh;
@@ -90,19 +91,11 @@
         }
 
         #reader video {
-            border-radius: 18px !important;
-            object-fit: cover !important;
-            width: 100% !important;
-            height: 100% !important;
-            display: block !important;
-        }
-
-        #reader__dashboard,
-        #reader__header_message,
-        #reader__scan_region > img,
-        #reader__scan_region > br,
-        #reader__filescan_input + div {
-            display: none !important;
+            border-radius: 18px;
+            object-fit: cover;
+            width: 100%;
+            height: 100%;
+            display: block;
         }
 
         .scanner-controls { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -167,7 +160,6 @@
 
         .error-box h3 { color: #ff5c6c; font-size: 0.95rem; margin-bottom: 8px; }
         .error-box p { margin-bottom: 6px; color: #c8c8e0; }
-        .error-box strong { color: #ff9ba5; }
         .error-box details {
             margin-top: 10px;
             padding-top: 10px;
@@ -188,6 +180,7 @@
             overflow-y: auto;
         }
 
+        /* ===== МОДАЛКА ===== */
         .scan-modal-overlay {
             position: fixed;
             inset: 0;
@@ -205,15 +198,8 @@
 
         .scan-modal-overlay.show { display: flex; }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideUp {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         .scan-modal {
             background: #1a1a2e;
@@ -331,6 +317,7 @@
             color: #c8c8e0;
         }
 
+        /* ===== ГЕНЕРАТОР ===== */
         .gen-input-group { display: flex; gap: 10px; margin-bottom: 12px; }
 
         #qr-text {
@@ -414,11 +401,8 @@
 
         .gen-result strong { color: #a78bfa; }
 
-        .history-header {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 12px;
-        }
+        /* ===== ИСТОРИЯ ===== */
+        .history-header { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 
         .btn-clear-all {
             padding: 8px 14px;
@@ -435,11 +419,7 @@
             gap: 6px;
         }
 
-        .btn-clear-all:hover {
-            background: rgba(220, 53, 69, 0.15);
-            border-color: #dc3545;
-        }
-
+        .btn-clear-all:hover { background: rgba(220, 53, 69, 0.15); border-color: #dc3545; }
         .btn-clear-all:active { transform: scale(0.97); }
 
         #history-list { list-style: none; }
@@ -459,12 +439,7 @@
         }
 
         .history-labels { display: flex; gap: 4px; flex-shrink: 0; }
-
-        .history-item-text {
-            flex: 1;
-            color: #c8c8e0;
-            min-width: 0;
-        }
+        .history-item-text { flex: 1; color: #c8c8e0; min-width: 0; }
 
         .history-actions {
             display: flex;
@@ -506,12 +481,7 @@
         .regen-btn.gs1 { background: #8b5cf6; }
         .regen-btn.gs1:hover { background: #7c3aed; }
 
-        .empty-history {
-            text-align: center;
-            color: #5a5a7a;
-            padding: 30px 20px;
-            font-size: 0.9rem;
-        }
+        .empty-history { text-align: center; color: #5a5a7a; padding: 30px 20px; font-size: 0.9rem; }
 
         #app-toast {
             position: fixed;
@@ -557,7 +527,9 @@
         </div>
 
         <div id="scanner" class="tab-content active">
-            <div id="reader"></div>
+            <div id="reader">
+                <video id="reader-video" muted playsinline></video>
+            </div>
             <div class="scanner-controls">
                 <button id="btn-start" class="btn-start">▶ Старт сканирования</button>
                 <button id="btn-file" class="btn-file">📁 Скан файла</button>
@@ -607,14 +579,18 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/html5-qrcode@2.3.8"></script>
+    <!-- ✅ ZXing library + browser -->
+    <script src="https://unpkg.com/@zxing/library@0.21.3"></script>
+    <script src="https://unpkg.com/@zxing/browser@0.1.5"></script>
+    <!-- Генератор QR остаётся прежним -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.4.4/qrcode.min.js"></script>
 
     <script>
         // ============================================================
         //  СОСТОЯНИЕ
         // ============================================================
-        let html5QrCode = null;
+        let codeReader = null;
+        let scannerControls = null;      // IScannerControls от ZXing
         let isScanning = false;
         let isStopping = false;
         let torchOn = false;
@@ -622,10 +598,6 @@
         let lastScanText = '';
         let lastScanTime = 0;
         const SCAN_DEBOUNCE_MS = 3000;
-
-        // ✅ Последние успешно применённые video-constraints
-        // нужно, чтобы фонарик не сбрасывал разрешение и фокус
-        let appliedVideoConstraints = null;
 
         let lastGeneratedCanvas = null;
         let lastGeneratedText = '';
@@ -667,37 +639,23 @@
         // ============================================================
         function initScanModal() {
             document.getElementById('scan-modal-close').addEventListener('click', closeScanModal);
-
             document.getElementById('scan-modal-overlay').addEventListener('click', (e) => {
                 if (e.target.id === 'scan-modal-overlay') closeScanModal();
             });
-
             document.addEventListener('keydown', (e) => {
                 const overlay = document.getElementById('scan-modal-overlay');
                 if (!overlay.classList.contains('show')) return;
-
-                if (e.key === 'Escape') {
-                    closeScanModal();
-                    return;
-                }
-
+                if (e.key === 'Escape') { closeScanModal(); return; }
                 if (e.key === 'Tab') {
                     const modal = overlay.querySelector('.scan-modal');
                     const focusables = modal.querySelectorAll(
                         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
                     );
                     if (focusables.length === 0) return;
-
                     const first = focusables[0];
                     const last = focusables[focusables.length - 1];
-
-                    if (e.shiftKey && document.activeElement === first) {
-                        e.preventDefault();
-                        last.focus();
-                    } else if (!e.shiftKey && document.activeElement === last) {
-                        e.preventDefault();
-                        first.focus();
-                    }
+                    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
                 }
             });
         }
@@ -706,13 +664,9 @@
             const overlay = document.getElementById('scan-modal-overlay');
             overlay.classList.add('show');
             document.body.style.overflow = 'hidden';
-
             const modal = overlay.querySelector('.scan-modal');
             modal.scrollTop = 0;
-
-            setTimeout(() => {
-                document.getElementById('scan-modal-close').focus();
-            }, 100);
+            setTimeout(() => document.getElementById('scan-modal-close').focus(), 100);
         }
 
         function closeScanModal() {
@@ -721,37 +675,29 @@
         }
 
         // ============================================================
-        //  СКАНЕР
+        //  СКАНЕР — ZXing с TRY_HARDER
         // ============================================================
         function initScanner() {
-            if (typeof Html5Qrcode === 'undefined') {
-                showScanError('Библиотека не загружена', 'Проверьте интернет-соединение и обновите страницу.');
+            if (typeof ZXingBrowser === 'undefined' || typeof ZXing === 'undefined') {
+                showScanError('Библиотека ZXing не загружена', 'Проверьте интернет-соединение и обновите страницу.');
                 return;
             }
 
             try {
-                // ✅ useBarCodeDetectorIfSupported: false — принудительно ZXing.
-                //    Нативный BarcodeDetector плохо/нестабильно читает DataMatrix.
-                const config = {
-                    verbose: false,
-                    useBarCodeDetectorIfSupported: false
-                };
-                if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
-                    config.formatsToSupport = [
-                        Html5QrcodeSupportedFormats.QR_CODE,
-                        Html5QrcodeSupportedFormats.DATA_MATRIX
-                    ];
-                }
-                html5QrCode = new Html5Qrcode("reader", config);
-                console.log('✓ Сканер инициализирован (ZXing, QR + DataMatrix)');
+                // ✅ Hints: TRY_HARDER + только DataMatrix и QR
+                const hints = new Map();
+                hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+                hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+                    ZXing.BarcodeFormat.DATA_MATRIX,
+                    ZXing.BarcodeFormat.QR_CODE
+                ]);
+
+                codeReader = new ZXingBrowser.BrowserMultiFormatReader(hints);
+                console.log('✓ ZXing инициализирован (TRY_HARDER, DataMatrix + QR)');
             } catch (err) {
-                console.warn('Конфиг не принят, пробуем минимальный:', err?.message);
-                try {
-                    html5QrCode = new Html5Qrcode("reader");
-                } catch (e2) {
-                    showScanError('Не удалось инициализировать сканер', e2?.message || String(e2));
-                    return;
-                }
+                console.error('Ошибка инициализации ZXing:', err);
+                showScanError('Не удалось инициализировать сканер', err?.message || String(err));
+                return;
             }
 
             document.getElementById('btn-start').addEventListener('click', () => {
@@ -772,7 +718,7 @@
 
         async function startScanning() {
             if (isScanning || isStopping) return;
-            if (!html5QrCode) {
+            if (!codeReader) {
                 alert('Сканер не инициализирован. Обновите страницу.');
                 return;
             }
@@ -794,166 +740,58 @@
                 return;
             }
 
-            try { await html5QrCode.stop(); } catch (e) {}
-            await new Promise(r => setTimeout(r, 200));
-
-            // ✅ fps: 60 — макс. частота анализа кадров
-            const config = {
-                fps: 60,
-                qrbox: (vw, vh) => {
-                    const minEdge = Math.min(vw, vh);
-                    const size = Math.max(200, Math.min(400, Math.floor(minEdge * 0.75)));
-                    return { width: size, height: size };
-                },
-                disableFlip: false
-            };
+            const videoEl = document.getElementById('reader-video');
 
             try {
-                await html5QrCode.start(
-                    { facingMode: "environment" },
-                    config,
-                    onScanSuccess,
-                    onScanError
+                // ✅ decodeFromConstraints даёт контроль над facingMode и разрешением
+                scannerControls = await codeReader.decodeFromConstraints(
+                    {
+                        video: {
+                            facingMode: { ideal: "environment" },
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
+                        }
+                    },
+                    videoEl,
+                    (result, error) => {
+                        if (result) {
+                            onScanSuccess(result.getText(), result);
+                        }
+                        // NotFoundException — норма, игнорируем
+                    }
                 );
-                console.log('✓ Камера запущена через facingMode');
 
+                console.log('✓ ZXing камера запущена');
                 isScanning = true;
                 btnStart.textContent = '⏹ Остановить';
                 btnStart.classList.add('is-scanning');
                 btnStart.disabled = false;
 
-                // ✅ Один вызов применяет разрешение + fps + фокус
-                await applyAllVideoSettings();
                 await checkTorchSupport();
-                return;
 
             } catch (err) {
-                console.warn('Запуск через facingMode не удался:', err?.name, err?.message);
+                console.error('Не удалось запустить камеру:', err);
 
+                let devices = [];
                 try {
-                    const devices = await Html5Qrcode.getCameras();
-                    if (!devices || devices.length === 0) throw new Error('Камеры не найдены');
+                    devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+                } catch (e) {}
 
-                    let cameraId = devices[0].id;
-                    for (const d of devices) {
-                        const label = (d.label || '').toLowerCase();
-                        if (label.includes('back') || label.includes('rear') ||
-                            label.includes('задн') || label.includes('environment')) {
-                            cameraId = d.id;
-                            break;
+                showScanError(
+                    'Не удалось запустить камеру',
+                    'Проверьте разрешения и что страница открыта по HTTPS.',
+                    {
+                        error: `${err?.name || 'Error'}: ${err?.message || String(err)}`,
+                        devices: devices.map(d => ({ label: d.label || '(без имени)', id: d.deviceId?.substring(0, 8) + '…' })),
+                        diagnostics: {
+                            isSecureContext: window.isSecureContext,
+                            protocol: window.location.protocol,
+                            userAgent: navigator.userAgent
                         }
                     }
-
-                    try { await html5QrCode.stop(); } catch (e) {}
-                    await new Promise(r => setTimeout(r, 300));
-
-                    await html5QrCode.start(cameraId, config, onScanSuccess, onScanError);
-                    console.log('✓ Камера запущена по deviceId:', cameraId.substring(0, 8));
-
-                    isScanning = true;
-                    btnStart.textContent = '⏹ Остановить';
-                    btnStart.classList.add('is-scanning');
-                    btnStart.disabled = false;
-
-                    await applyAllVideoSettings();
-                    await checkTorchSupport();
-                    return;
-
-                } catch (err2) {
-                    console.error('Fallback по deviceId тоже не удался:', err2);
-
-                    let devices = [];
-                    try {
-                        const list = await navigator.mediaDevices.enumerateDevices();
-                        devices = list
-                            .filter(d => d.kind === 'videoinput')
-                            .map(d => ({ label: d.label || '(без имени)', id: d.deviceId ? d.deviceId.substring(0, 8) + '…' : '—' }));
-                    } catch (e) {}
-
-                    showScanError(
-                        'Не удалось запустить камеру',
-                        'Все способы запуска провалились. Смотрите диагностику ниже.',
-                        {
-                            firstError: formatError(err),
-                            lastError: formatError(err2),
-                            devices,
-                            diagnostics: {
-                                isSecureContext: window.isSecureContext,
-                                protocol: window.location.protocol,
-                                hostname: window.location.hostname,
-                                userAgent: navigator.userAgent,
-                                mediaDevices: !!navigator.mediaDevices,
-                                getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
-                            }
-                        }
-                    );
-                    resetStartButton();
-                }
+                );
+                resetStartButton();
             }
-        }
-
-        /**
-         * ✅ Пробует применить разрешение + fps + фокус одним вызовом.
-         * Порядок: 2560×1440@60 → 1920×1080@60 → 1920×1080 → 1280×720 → только фокус.
-         * Результат сохраняется в appliedVideoConstraints — чтобы фонарик не сбрасывал настройки.
-         */
-        async function applyAllVideoSettings() {
-            if (!html5QrCode) return;
-
-            const focusAdvanced = { focusMode: "continuous" };
-
-            const attempts = [
-                {
-                    label: '2560×1440 @60fps + focus',
-                    constraints: {
-                        width: { ideal: 2560 },
-                        height: { ideal: 1440 },
-                        frameRate: { ideal: 60 },
-                        advanced: [focusAdvanced]
-                    }
-                },
-                {
-                    label: '1920×1080 @60fps + focus',
-                    constraints: {
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 },
-                        frameRate: { ideal: 60 },
-                        advanced: [focusAdvanced]
-                    }
-                },
-                {
-                    label: '1920×1080 + focus',
-                    constraints: {
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 },
-                        advanced: [focusAdvanced]
-                    }
-                },
-                {
-                    label: '1280×720 + focus',
-                    constraints: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        advanced: [focusAdvanced]
-                    }
-                },
-                {
-                    label: 'только focus',
-                    constraints: { advanced: [focusAdvanced] }
-                }
-            ];
-
-            for (const attempt of attempts) {
-                try {
-                    await html5QrCode.applyVideoConstraints(attempt.constraints);
-                    appliedVideoConstraints = attempt.constraints;
-                    console.log('✓ Применено:', attempt.label);
-                    return;
-                } catch (e) {
-                    console.warn('✗ Не удалось:', attempt.label, e?.message);
-                }
-            }
-            console.warn('Все попытки применить видео-настройки провалились, работаем на дефолте');
         }
 
         function resetStartButton() {
@@ -964,14 +802,8 @@
             isScanning = false;
         }
 
-        function formatError(err) {
-            if (!err) return 'null';
-            return `${err.name || 'Error'}: ${err.message || String(err)}`;
-        }
-
         function showScanError(title, message, details) {
             closeScanModal();
-
             const box = document.getElementById('scan-error');
             box.style.display = 'block';
             box.innerHTML = '';
@@ -999,26 +831,39 @@
         async function stopScanning() {
             if (isStopping) return;
             if (!isScanning) return;
-            if (!html5QrCode) {
-                resetStartButton();
-                return;
-            }
 
             isStopping = true;
             isScanning = false;
 
+            // Выключаем фонарик перед остановкой
             if (torchOn) {
                 try { await setTorch(false); } catch (e) {}
             }
 
-            try { await html5QrCode.stop(); }
-            catch (e) { console.warn('Ошибка остановки камеры:', e); }
+            // ✅ Останавливаем ZXing
+            try {
+                if (scannerControls) {
+                    scannerControls.stop();
+                    scannerControls = null;
+                }
+            } catch (e) {
+                console.warn('Ошибка остановки ZXing:', e);
+            }
+
+            // ✅ Дополнительно останавливаем все треки (на случай, если controls не всё закрыл)
+            try {
+                const videoEl = document.getElementById('reader-video');
+                const stream = videoEl?.srcObject;
+                if (stream) {
+                    stream.getTracks().forEach(t => t.stop());
+                    videoEl.srcObject = null;
+                }
+            } catch (e) {}
 
             lastScanText = '';
             lastScanTime = 0;
             torchSupported = false;
             torchOn = false;
-            appliedVideoConstraints = null;   // сбрасываем при стопе
 
             resetStartButton();
 
@@ -1030,10 +875,12 @@
             isStopping = false;
         }
 
+        // ===== ФОНАРИК =====
         async function checkTorchSupport() {
             const btnTorch = document.getElementById('btn-torch');
             try {
-                const stream = document.querySelector('#reader video')?.srcObject;
+                // ✅ У ZXing поток доступен через codeReader.stream
+                const stream = codeReader?.stream || document.getElementById('reader-video')?.srcObject;
                 const track = stream?.getVideoTracks?.()[0];
                 if (track && track.getCapabilities) {
                     const caps = track.getCapabilities();
@@ -1054,60 +901,57 @@
         }
 
         async function setTorch(on) {
-            if (!html5QrCode) return;
             const btnTorch = document.getElementById('btn-torch');
-
-            // ✅ Сохраняем ранее применённые настройки (разрешение, fps, фокус),
-            //    иначе applyVideoConstraints их сбросит
-            const baseConstraints = appliedVideoConstraints || { advanced: [{ focusMode: "continuous" }] };
-            const combined = {
-                ...baseConstraints,
-                advanced: [
-                    ...(baseConstraints.advanced || []),
-                    { torch: on }
-                ]
-            };
-
             try {
-                await html5QrCode.applyVideoConstraints(combined);
-                torchOn = on;
-                btnTorch.classList.toggle('active', on);
-                btnTorch.title = on ? 'Выключить фонарик' : 'Включить фонарик';
-                return;
-            } catch (e) {
-                console.warn('Torch + base constraints не удалось:', e?.message);
-            }
+                const stream = codeReader?.stream || document.getElementById('reader-video')?.srcObject;
+                const track = stream?.getVideoTracks?.()[0];
+                if (!track) throw new Error('Нет видеотрека');
 
-            // Fallback — только фонарик
-            try {
-                await html5QrCode.applyVideoConstraints({ advanced: [{ torch: on }] });
+                await track.applyConstraints({
+                    advanced: [{ torch: on }]
+                });
+
                 torchOn = on;
                 btnTorch.classList.toggle('active', on);
                 btnTorch.title = on ? 'Выключить фонарик' : 'Включить фонарик';
             } catch (e) {
-                console.warn('Фонарик недоступен:', e?.message);
+                console.warn('Не удалось переключить фонарик:', e);
                 showToast('Фонарик недоступен на этом устройстве');
                 torchSupported = false;
                 btnTorch.disabled = true;
             }
         }
 
+        // ===== СКАН ФАЙЛА =====
         async function onFileSelected(event) {
             const file = event.target.files?.[0];
             if (!file) return;
+
             if (isScanning) await stopScanning();
             document.getElementById('scan-error').style.display = 'none';
 
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+
             try {
-                const result = await html5QrCode.scanFile(file, true);
-                handleScanResult(result, null);
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = url;
+                });
+
+                const result = await codeReader.decodeFromImageElement(img);
+                handleScanResult(result.getText(), result);
             } catch (err) {
                 console.error('Ошибка сканирования файла:', err);
                 showScanError('Не удалось распознать файл', 'Попробуйте другое изображение с чётким QR/DataMatrix.');
+            } finally {
+                URL.revokeObjectURL(url);
+                event.target.value = '';
             }
-            event.target.value = '';
         }
 
+        // ===== УСПЕШНЫЙ СКАН =====
         function onScanSuccess(decodedText, decodedResult) {
             const rawText = String(decodedText);
             const now = Date.now();
@@ -1119,8 +963,9 @@
             handleScanResult(rawText, decodedResult);
         }
 
-        function onScanError(err) {}
-
+        // ============================================================
+        //  РЕЗУЛЬТАТ
+        // ============================================================
         function handleScanResult(rawText, decodedResult) {
             const displayText = cleanScanText(rawText);
             const isGS1 = isGS1Text(rawText);
@@ -1204,9 +1049,7 @@
             switchTab('generator');
             const input = document.getElementById('qr-text');
             const checkbox = document.getElementById('gs1-mode-checkbox');
-
             input.value = text;
-
             if (rawText) {
                 input.dataset.raw = rawText;
                 checkbox.checked = true;
@@ -1214,12 +1057,11 @@
                 delete input.dataset.raw;
                 checkbox.checked = false;
             }
-
             generateQR();
         }
 
         // ============================================================
-        //  ГЕНЕРАТОР
+        //  ГЕНЕРАТОР (без изменений)
         // ============================================================
         function initGenerator() {
             document.getElementById('generate-btn').addEventListener('click', generateQR);
@@ -1264,17 +1106,12 @@
             const generateBtn = document.getElementById('generate-btn');
 
             const inputText = input.value.trim();
-            if (!inputText) {
-                alert('Пожалуйста, введите текст или ссылку.');
-                return;
-            }
-
+            if (!inputText) { alert('Пожалуйста, введите текст или ссылку.'); return; }
             if (generateBtn.disabled) return;
             generateBtn.disabled = true;
 
             let textToEncode = inputText;
             let isGS1 = false;
-
             if (checkbox.checked && input.dataset.raw) {
                 textToEncode = input.dataset.raw;
                 isGS1 = true;
@@ -1287,46 +1124,27 @@
 
             QRCode.toCanvas(textToEncode, { width: 200, margin: 2 }, (error, canvas) => {
                 generateBtn.disabled = false;
-
-                if (error) {
-                    console.error(error);
-                    alert('Не удалось сгенерировать QR-код.');
-                    return;
-                }
+                if (error) { console.error(error); alert('Не удалось сгенерировать QR-код.'); return; }
                 canvasContainer.appendChild(canvas);
                 lastGeneratedCanvas = canvas;
                 lastGeneratedText = inputText;
 
                 qrActions.style.display = 'flex';
                 genResult.style.display = 'block';
-
                 const badge = isGS1 ? '<span class="gs1-badge">GS1</span> ' : '';
                 genResult.innerHTML = `${badge}<strong>Сгенерировано для:</strong> ${escapeHtml(inputText)}`;
 
-                addToHistory({
-                    text: inputText,
-                    rawText: isGS1 ? textToEncode : null,
-                    type: 'generate'
-                });
+                addToHistory({ text: inputText, rawText: isGS1 ? textToEncode : null, type: 'generate' });
             });
         }
 
         async function shareText(text) {
             if (navigator.share) {
-                try {
-                    await navigator.share({ title: 'QR-код', text: text });
-                    return;
-                } catch (e) {
-                    if (e.name === 'AbortError') return;
-                    console.warn('Ошибка шаринга:', e);
-                }
+                try { await navigator.share({ title: 'QR-код', text: text }); return; }
+                catch (e) { if (e.name === 'AbortError') return; console.warn('Ошибка шаринга:', e); }
             }
-            try {
-                await navigator.clipboard.writeText(text);
-                showToast('📋 Скопировано в буфер обмена');
-            } catch (e) {
-                prompt('Скопируйте текст:', text);
-            }
+            try { await navigator.clipboard.writeText(text); showToast('📋 Скопировано в буфер обмена'); }
+            catch (e) { prompt('Скопируйте текст:', text); }
         }
 
         function shareQRImage(canvas, text) {
@@ -1335,13 +1153,8 @@
                 if (!blob) { shareText(text); return; }
                 const file = new File([blob], 'qr-code.png', { type: 'image/png' });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({ files: [file], title: 'QR-код', text: text });
-                        return;
-                    } catch (e) {
-                        if (e.name === 'AbortError') return;
-                        console.warn('Ошибка шаринга файла:', e);
-                    }
+                    try { await navigator.share({ files: [file], title: 'QR-код', text: text }); return; }
+                    catch (e) { if (e.name === 'AbortError') return; console.warn('Ошибка шаринга файла:', e); }
                 }
                 downloadQRImage(canvas);
             }, 'image/png');
@@ -1353,11 +1166,8 @@
                 if (!blob) return;
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = 'qr-code.png';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                a.href = url; a.download = 'qr-code.png';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 showToast('💾 QR-код скачан');
             }, 'image/png');
@@ -1379,7 +1189,7 @@
         }
 
         // ============================================================
-        //  ИСТОРИЯ
+        //  ИСТОРИЯ (без изменений)
         // ============================================================
         const HISTORY_KEY = 'qr_tool_history';
 
@@ -1389,31 +1199,18 @@
                 if (!stored) return [];
                 const parsed = JSON.parse(stored);
                 if (!Array.isArray(parsed)) return [];
-                return parsed.filter(item =>
-                    item && typeof item.text === 'string' && typeof item.type === 'string'
-                );
-            } catch (e) {
-                console.warn('Не удалось прочитать историю:', e);
-                return [];
-            }
+                return parsed.filter(item => item && typeof item.text === 'string' && typeof item.type === 'string');
+            } catch (e) { console.warn('Не удалось прочитать историю:', e); return []; }
         }
 
         function saveHistory(history) {
-            try {
-                localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-            } catch (e) {
-                console.warn('Не удалось сохранить историю:', e);
-            }
+            try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); }
+            catch (e) { console.warn('Не удалось сохранить историю:', e); }
         }
 
         function addToHistory(item) {
             const history = getHistory();
-            history.unshift({
-                text: item.text,
-                rawText: item.rawText || null,
-                type: item.type,
-                timestamp: new Date().toISOString()
-            });
+            history.unshift({ text: item.text, rawText: item.rawText || null, type: item.type, timestamp: new Date().toISOString() });
             if (history.length > 50) history.pop();
             saveHistory(history);
         }
@@ -1422,12 +1219,8 @@
             document.getElementById('clear-all-btn').addEventListener('click', () => {
                 const count = getHistory().length;
                 if (count === 0) return;
-
-                const confirmed = confirm(
-                    `Очистить всю историю?\n\nБудет удалено записей: ${count}.\nЭто действие нельзя отменить.`
-                );
+                const confirmed = confirm(`Очистить всю историю?\n\nБудет удалено записей: ${count}.\nЭто действие нельзя отменить.`);
                 if (!confirmed) return;
-
                 saveHistory([]);
                 renderHistory();
                 showToast('🗑 История очищена');
@@ -1442,17 +1235,12 @@
 
             list.innerHTML = '';
 
-            if (history.length === 0) {
-                emptyMsg.style.display = 'block';
-                clearAllBtn.style.display = 'none';
-                return;
-            }
+            if (history.length === 0) { emptyMsg.style.display = 'block'; clearAllBtn.style.display = 'none'; return; }
             emptyMsg.style.display = 'none';
             clearAllBtn.style.display = 'flex';
 
             history.forEach((item, index) => {
                 const li = document.createElement('li');
-
                 const labelsDiv = document.createElement('div');
                 labelsDiv.className = 'history-labels';
 
@@ -1478,24 +1266,15 @@
                 const regenBtn = document.createElement('button');
                 regenBtn.className = item.rawText ? 'regen-btn gs1' : 'regen-btn';
                 regenBtn.textContent = '↻';
-                regenBtn.title = item.rawText ? 'Сгенерировать GS1 QR' : 'Сгенерировать QR';
-                regenBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    useScannedText(item.text, item.rawText || null);
-                };
+                regenBtn.onclick = (e) => { e.stopPropagation(); useScannedText(item.text, item.rawText || null); };
 
                 const delBtn = document.createElement('button');
                 delBtn.className = 'delete-btn';
                 delBtn.textContent = '✕';
-                delBtn.title = 'Удалить запись';
-                delBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    deleteHistoryItem(index);
-                };
+                delBtn.onclick = (e) => { e.stopPropagation(); deleteHistoryItem(index); };
 
                 actionsDiv.appendChild(regenBtn);
                 actionsDiv.appendChild(delBtn);
-
                 li.appendChild(labelsDiv);
                 li.appendChild(textSpan);
                 li.appendChild(actionsDiv);
@@ -1507,11 +1286,9 @@
             const history = getHistory();
             const item = history[index];
             if (!item) return;
-
             const preview = item.text.length > 60 ? item.text.substring(0, 60) + '…' : item.text;
             const confirmed = confirm(`Удалить эту запись?\n\n«${preview}»\n\nЭто действие нельзя отменить.`);
             if (!confirmed) return;
-
             history.splice(index, 1);
             saveHistory(history);
             renderHistory();
@@ -1519,12 +1296,7 @@
         }
 
         function escapeHtml(str) {
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         }
     </script>
 </body>
