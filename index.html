@@ -5,12 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>QR-Инструменты</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
         body {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -49,11 +44,7 @@
             background-clip: text;
         }
 
-        .app-header p {
-            font-size: 0.8rem;
-            color: #6c6c8a;
-            margin-top: 4px;
-        }
+        .app-header p { font-size: 0.8rem; color: #6c6c8a; margin-top: 4px; }
 
         .tabs {
             display: flex;
@@ -83,14 +74,8 @@
             box-shadow: 0 2px 8px rgba(108, 99, 255, 0.2);
         }
 
-        .tab-content {
-            display: none;
-            padding: 20px 20px 24px;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
+        .tab-content { display: none; padding: 20px 20px 24px; }
+        .tab-content.active { display: block; }
 
         /* ===== СКАНЕР ===== */
         #reader {
@@ -105,7 +90,6 @@
             position: relative;
         }
 
-        /* Заставляем видео заполнять весь контейнер как нативное приложение камеры */
         #reader video {
             border-radius: 18px !important;
             object-fit: cover !important;
@@ -114,20 +98,15 @@
             display: block !important;
         }
 
-        /* Скрываем стандартный UI html5-qrcode (если остался) */
         #reader__dashboard,
         #reader__header_message,
         #reader__scan_region > img,
-        #reader__scan_region > br {
+        #reader__scan_region > br,
+        #reader__filescan_input + div {
             display: none !important;
         }
 
-        .scanner-controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 14px;
-            flex-wrap: wrap;
-        }
+        .scanner-controls { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 
         .scanner-controls button {
             flex: 1;
@@ -153,17 +132,12 @@
 
         .btn-start:active { transform: scale(0.97); }
         .btn-start:disabled { opacity: 0.5; pointer-events: none; }
-
         .btn-start.is-scanning {
             background: linear-gradient(135deg, #dc3545, #ff5c6c);
             box-shadow: 0 4px 16px rgba(220, 53, 69, 0.35);
         }
 
-        .btn-file {
-            background: #2a2a45;
-            color: #c8c8e0;
-        }
-
+        .btn-file { background: #2a2a45; color: #c8c8e0; }
         .btn-file:active { transform: scale(0.97); }
 
         .btn-torch {
@@ -182,6 +156,53 @@
 
         .btn-torch:disabled { opacity: 0.35; pointer-events: none; }
 
+        /* Блок диагностики */
+        .error-box {
+            padding: 16px;
+            background: #2a1520;
+            border: 1px solid #dc3545;
+            border-radius: 14px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .error-box h3 {
+            color: #ff5c6c;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .error-box p { margin-bottom: 6px; color: #c8c8e0; }
+        .error-box strong { color: #ff9ba5; }
+
+        .error-box details {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .error-box summary {
+            cursor: pointer;
+            color: #6c63ff;
+            user-select: none;
+            font-weight: 600;
+        }
+
+        .error-box pre {
+            margin-top: 8px;
+            padding: 10px;
+            background: #0a0a14;
+            border-radius: 8px;
+            font-size: 0.72rem;
+            color: #a0a0c0;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
         .scan-result {
             padding: 14px 16px;
             background: #12121f;
@@ -195,12 +216,7 @@
 
         .scan-result strong { color: #a78bfa; }
 
-        .result-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 10px;
-        }
+        .result-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
         .result-actions button {
             padding: 8px 14px;
@@ -278,27 +294,9 @@
         .btn-generate:active { transform: scale(0.97); }
 
         .gen-options { margin-bottom: 16px; font-size: 0.85rem; }
-        .gen-options label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            user-select: none;
-            color: #a0a0c0;
-        }
-        .gen-options input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: #6c63ff;
-            cursor: pointer;
-        }
-        .gen-options .hint {
-            display: block;
-            color: #5a5a7a;
-            font-size: 0.72rem;
-            margin-top: 4px;
-            margin-left: 26px;
-        }
+        .gen-options label { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; color: #a0a0c0; }
+        .gen-options input[type="checkbox"] { width: 18px; height: 18px; accent-color: #6c63ff; cursor: pointer; }
+        .gen-options .hint { display: block; color: #5a5a7a; font-size: 0.72rem; margin-top: 4px; margin-left: 26px; }
 
         #qr-canvas-container {
             display: flex;
@@ -316,13 +314,7 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
 
-        .qr-actions {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 14px;
-            flex-wrap: wrap;
-        }
+        .qr-actions { display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 
         .qr-actions button {
             padding: 10px 18px;
@@ -353,18 +345,8 @@
             border: 1px solid rgba(255, 255, 255, 0.04);
         }
 
-        .history-labels {
-            display: flex;
-            gap: 4px;
-            margin-right: 8px;
-            flex-shrink: 0;
-        }
-
-        .history-item-text {
-            flex: 1;
-            margin-right: 10px;
-            color: #c8c8e0;
-        }
+        .history-labels { display: flex; gap: 4px; margin-right: 8px; flex-shrink: 0; }
+        .history-item-text { flex: 1; margin-right: 10px; color: #c8c8e0; }
 
         .history-item-type {
             font-size: 0.65rem;
@@ -380,8 +362,7 @@
         .type-generate { background: #fd7e14; }
         .type-gs1 { background: #8b5cf6; }
 
-        .delete-btn,
-        .regen-btn {
+        .delete-btn, .regen-btn {
             padding: 5px 9px;
             font-size: 0.75rem;
             border-radius: 7px;
@@ -395,12 +376,7 @@
         .regen-btn { background: #6c63ff; color: #fff; margin-right: 5px; }
         .regen-btn.gs1 { background: #8b5cf6; }
 
-        .empty-history {
-            text-align: center;
-            color: #5a5a7a;
-            padding: 30px 20px;
-            font-size: 0.9rem;
-        }
+        .empty-history { text-align: center; color: #5a5a7a; padding: 30px 20px; font-size: 0.9rem; }
 
         #app-toast {
             position: fixed;
@@ -445,6 +421,7 @@
                 <button id="btn-torch" class="btn-torch" disabled title="Фонарик">🔦</button>
             </div>
             <input type="file" id="file-input" accept="image/*" capture="environment">
+            <div id="scan-error" class="error-box" style="display: none;"></div>
             <div id="scan-result-container" class="scan-result" style="display: none;"></div>
         </div>
 
@@ -528,47 +505,25 @@
         }
 
         // ============================================================
-        //  СКАНЕР
+        //  СКАНЕР — МАКСИМАЛЬНО ПРОСТАЯ КОНФИГУРАЦИЯ
         // ============================================================
         function initScanner() {
-            // Проверка загрузки библиотеки
             if (typeof Html5Qrcode === 'undefined') {
-                console.error('Библиотека html5-qrcode не загружена');
-                document.getElementById('btn-start').disabled = true;
+                showScanError('Библиотека не загружена', 'Проверьте интернет-соединение и обновите страницу.');
                 return;
             }
 
             try {
-                const config = { verbose: false };
-
-                // Форматы добавляем только если enum доступен
-                if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
-                    config.formatsToSupport = [
-                        Html5QrcodeSupportedFormats.QR_CODE,
-                        Html5QrcodeSupportedFormats.DATA_MATRIX
-                    ];
-                }
-
-                html5QrCode = new Html5Qrcode("reader", config);
+                // Без опций вообще — как в документации
+                html5QrCode = new Html5Qrcode("reader");
             } catch (err) {
-                console.error('Не удалось создать Html5Qrcode:', err);
-                // Fallback — без конфига
-                try {
-                    html5QrCode = new Html5Qrcode("reader");
-                } catch (e2) {
-                    console.error('Fallback тоже не сработал:', e2);
-                    alert('Сканер не инициализирован. Обновите страницу.');
-                    return;
-                }
+                showScanError('Не удалось инициализировать сканер', err?.message || String(err));
+                return;
             }
 
-            // Toggle старт/стоп
             document.getElementById('btn-start').addEventListener('click', () => {
-                if (isScanning || isStopping) {
-                    stopScanning();
-                } else {
-                    startScanning();
-                }
+                if (isScanning || isStopping) stopScanning();
+                else startScanning();
             });
 
             document.getElementById('btn-file').addEventListener('click', () => {
@@ -578,91 +533,181 @@
             document.getElementById('btn-torch').addEventListener('click', toggleTorch);
 
             document.addEventListener('visibilitychange', () => {
-                if (document.hidden && isScanning) {
-                    stopScanning();
-                }
+                if (document.hidden && isScanning) stopScanning();
             });
         }
 
         async function startScanning() {
             if (isScanning || isStopping) return;
-            if (!html5QrCode) {
-                alert('Сканер не инициализирован. Обновите страницу.');
-                return;
-            }
+            if (!html5QrCode) return;
 
             const btnStart = document.getElementById('btn-start');
             btnStart.disabled = true;
             btnStart.textContent = '⏳ Запуск...';
 
-            // Размер рамки — 65% от меньшей стороны окна, максимум 280px
-            const boxSize = Math.min(280, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.65));
+            // Скрываем предыдущие ошибки
+            document.getElementById('scan-error').style.display = 'none';
+            document.getElementById('scan-result-container').style.display = 'none';
 
-            const scanConfig = {
-                fps: 20,
-                qrbox: { width: boxSize, height: boxSize }
-            };
-
-            // ✅ Безопасные попытки запуска: от простого к самому мягкому
-            const attempts = [
-                { facingMode: "environment" },          // стандарт для задней камеры
-                { facingMode: { ideal: "environment" } }, // более мягкий вариант
-                {}                                       // любая камера (fallback)
-            ];
-
-            let lastError = null;
-            let started = false;
-
-            for (let i = 0; i < attempts.length; i++) {
-                try {
-                    await html5QrCode.start(
-                        attempts[i],
-                        scanConfig,
-                        onScanSuccess,
-                        onScanError
-                    );
-                    started = true;
-                    console.log(`Камера запущена (попытка ${i + 1})`);
-                    break;
-                } catch (err) {
-                    console.warn(`Попытка ${i + 1} не удалась:`, err?.name, err?.message);
-                    lastError = err;
-                    // Освобождаем камеру перед следующей попыткой
-                    try { await html5QrCode.stop(); } catch (e) {}
-                    await new Promise(r => setTimeout(r, 400));
-                }
-            }
-
-            if (!started) {
-                console.error('Камера не запустилась:', lastError);
-                btnStart.textContent = '▶ Старт сканирования';
-                btnStart.classList.remove('is-scanning');
-                btnStart.disabled = false;
-
-                const errName = lastError?.name || 'Unknown';
-                const errMsg = lastError?.message || '';
-
-                let hints = 'Проверьте:\n• Разрешение на камеру в браузере\n• HTTPS или localhost\n• Камера не занята другим приложением';
-                if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-                    hints = 'Вы отклонили доступ к камере.\n\nОткройте настройки браузера и разрешите камеру для этого сайта, затем обновите страницу.';
-                } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
-                    hints = 'Камера не найдена. Проверьте, что устройство имеет камеру.';
-                } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
-                    hints = 'Камера занята другим приложением.\n\nЗакройте другие приложения с камерой и попробуйте снова.';
-                } else if (errName === 'OverconstrainedError') {
-                    hints = 'Не удалось подобрать параметры камеры. Попробуйте перезагрузить страницу.';
-                }
-
-                alert(`Не удалось запустить камеру.\n\nОшибка: ${errName}\n${errMsg ? `Детали: ${errMsg}\n\n` : '\n'}${hints}`);
+            // Проверка окружения ДО запуска
+            if (!window.isSecureContext) {
+                showScanError(
+                    'Небезопасное соединение',
+                    'Камера доступна только по HTTPS или на localhost. Откройте страницу по https:// — например, через GitHub Pages.'
+                );
+                resetStartButton();
                 return;
             }
 
-            isScanning = true;
-            btnStart.textContent = '⏹ Остановить';
-            btnStart.classList.add('is-scanning');
-            btnStart.disabled = false;
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showScanError(
+                    'Браузер не поддерживает камеру',
+                    'navigator.mediaDevices.getUserMedia отсутствует. Используйте современный браузер (Chrome, Safari, Firefox).'
+                );
+                resetStartButton();
+                return;
+            }
 
-            await checkTorchSupport();
+            // Конфиг — минимальный, как в документации
+            const config = {
+                fps: 15,
+                qrbox: { width: 250, height: 250 }
+            };
+
+            // Одна попытка с простым constraints
+            try {
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    onScanError
+                );
+
+                isScanning = true;
+                btnStart.textContent = '⏹ Остановить';
+                btnStart.classList.add('is-scanning');
+                btnStart.disabled = false;
+
+                await checkTorchSupport();
+                return;
+
+            } catch (firstErr) {
+                console.warn('Первый запуск не удался:', firstErr?.name, firstErr?.message);
+
+                // Освобождаем ресурсы
+                try { await html5QrCode.stop(); } catch (e) {}
+                await new Promise(r => setTimeout(r, 500));
+
+                // Попытка 2 — через devices list
+                try {
+                    const devices = await Html5Qrcode.getCameras();
+                    if (!devices || devices.length === 0) {
+                        showScanError(
+                            'Камеры не найдены',
+                            'Устройство не сообщает о наличии камер. Проверьте, что камера не отключена в системе.',
+                            { firstError: formatError(firstErr), devices: [] }
+                        );
+                        resetStartButton();
+                        return;
+                    }
+
+                    // Выбираем заднюю, если есть, иначе первую
+                    let cameraId = devices[0].id;
+                    for (const d of devices) {
+                        const label = (d.label || '').toLowerCase();
+                        if (label.includes('back') || label.includes('rear') || label.includes('задн') || label.includes('environment')) {
+                            cameraId = d.id;
+                            break;
+                        }
+                    }
+
+                    await html5QrCode.start(
+                        cameraId,
+                        config,
+                        onScanSuccess,
+                        onScanError
+                    );
+
+                    isScanning = true;
+                    btnStart.textContent = '⏹ Остановить';
+                    btnStart.classList.add('is-scanning');
+                    btnStart.disabled = false;
+
+                    await checkTorchSupport();
+                    return;
+
+                } catch (secondErr) {
+                    console.error('Второй запуск не удался:', secondErr);
+                    try { await html5QrCode.stop(); } catch (e) {}
+
+                    // Собираем диагностику
+                    let devices = [];
+                    try {
+                        const list = await navigator.mediaDevices.enumerateDevices();
+                        devices = list
+                            .filter(d => d.kind === 'videoinput')
+                            .map(d => ({ label: d.label || '(без имени)', id: d.deviceId ? d.deviceId.substring(0, 8) + '…' : '—' }));
+                    } catch (e) {}
+
+                    showScanError(
+                        'Не удалось запустить камеру',
+                        'Ни один способ не сработал. Смотрите диагностику ниже и пришлите её скриншот.',
+                        {
+                            firstError: formatError(firstErr),
+                            secondError: formatError(secondErr),
+                            devices,
+                            diagnostics: {
+                                isSecureContext: window.isSecureContext,
+                                protocol: window.location.protocol,
+                                hostname: window.location.hostname,
+                                userAgent: navigator.userAgent,
+                                mediaDevices: !!navigator.mediaDevices,
+                                getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+                                permissionsAPI: !!navigator.permissions
+                            }
+                        }
+                    );
+                    resetStartButton();
+                }
+            }
+        }
+
+        function resetStartButton() {
+            const btnStart = document.getElementById('btn-start');
+            btnStart.textContent = '▶ Старт сканирования';
+            btnStart.classList.remove('is-scanning');
+            btnStart.disabled = false;
+            isScanning = false;
+        }
+
+        function formatError(err) {
+            if (!err) return 'null';
+            return `${err.name || 'Error'}: ${err.message || String(err)}`;
+        }
+
+        function showScanError(title, message, details) {
+            const box = document.getElementById('scan-error');
+            box.style.display = 'block';
+            box.innerHTML = '';
+
+            const h3 = document.createElement('h3');
+            h3.textContent = '⚠ ' + title;
+            box.appendChild(h3);
+
+            const p = document.createElement('p');
+            p.textContent = message;
+            box.appendChild(p);
+
+            if (details) {
+                const det = document.createElement('details');
+                const sum = document.createElement('summary');
+                sum.textContent = 'Показать диагностику';
+                const pre = document.createElement('pre');
+                pre.textContent = JSON.stringify(details, null, 2);
+                det.appendChild(sum);
+                det.appendChild(pre);
+                box.appendChild(det);
+            }
         }
 
         async function stopScanning() {
@@ -684,14 +729,10 @@
 
             lastScanText = '';
             lastScanTime = 0;
-
             torchSupported = false;
             torchOn = false;
 
-            const btnStart = document.getElementById('btn-start');
-            btnStart.textContent = '▶ Старт сканирования';
-            btnStart.classList.remove('is-scanning');
-            btnStart.disabled = false;
+            resetStartButton();
 
             const btnTorch = document.getElementById('btn-torch');
             btnTorch.disabled = true;
@@ -748,16 +789,16 @@
             const file = event.target.files?.[0];
             if (!file) return;
 
-            if (isScanning) {
-                await stopScanning();
-            }
+            if (isScanning) await stopScanning();
+
+            document.getElementById('scan-error').style.display = 'none';
 
             try {
                 const result = await html5QrCode.scanFile(file, true);
                 handleScanResult(result, null);
             } catch (err) {
                 console.error('Ошибка сканирования файла:', err);
-                alert('Не удалось распознать код на изображении. Попробуйте другое фото.');
+                showScanError('Не удалось распознать файл', 'Попробуйте другое изображение с чётким QR/DataMatrix.');
             }
 
             event.target.value = '';
@@ -773,10 +814,7 @@
 
             handleScanResult(rawText, decodedResult);
 
-            // ✅ Автоотключение после успешного скана
-            if (isScanning) {
-                stopScanning();
-            }
+            if (isScanning) stopScanning();
         }
 
         function onScanError(err) {}
@@ -847,11 +885,7 @@
             row.appendChild(actions);
             resultContainer.appendChild(row);
 
-            addToHistory({
-                text: displayText,
-                rawText: gs1RawData,
-                type: 'scan'
-            });
+            addToHistory({ text: displayText, rawText: gs1RawData, type: 'scan' });
         }
 
         // ============================================================
@@ -906,7 +940,6 @@
 
             document.getElementById('gs1-mode-checkbox').addEventListener('change', (e) => {
                 const input = document.getElementById('qr-text');
-
                 if (e.target.checked) {
                     if (input.value.includes('\x1D')) {
                         input.dataset.raw = input.value;
@@ -918,7 +951,6 @@
                 } else {
                     delete input.dataset.raw;
                 }
-
                 if (input.value.trim()) generateQR();
             });
 
@@ -957,9 +989,7 @@
                 textToEncode = input.dataset.raw;
                 isGS1 = true;
             }
-            if (textToEncode.indexOf('\x1D') !== -1) {
-                isGS1 = true;
-            }
+            if (textToEncode.indexOf('\x1D') !== -1) isGS1 = true;
 
             canvasContainer.innerHTML = '';
             genResult.style.display = 'none';
@@ -1075,8 +1105,7 @@
                 const parsed = JSON.parse(stored);
                 if (!Array.isArray(parsed)) return [];
                 return parsed.filter(item =>
-                    item && typeof item.text === 'string' &&
-                    typeof item.type === 'string'
+                    item && typeof item.text === 'string' && typeof item.type === 'string'
                 );
             } catch (e) {
                 console.warn('Не удалось прочитать историю:', e);
