@@ -77,7 +77,6 @@
         .tab-content { display: none; padding: 20px 20px 24px; }
         .tab-content.active { display: block; }
 
-        /* ===== СКАНЕР ===== */
         #reader {
             width: 100%;
             height: 55vh;
@@ -156,7 +155,6 @@
 
         .btn-torch:disabled { opacity: 0.35; pointer-events: none; }
 
-        /* Блок диагностики */
         .error-box {
             padding: 16px;
             background: #2a1520;
@@ -167,28 +165,15 @@
             line-height: 1.5;
         }
 
-        .error-box h3 {
-            color: #ff5c6c;
-            font-size: 0.95rem;
-            margin-bottom: 8px;
-        }
-
+        .error-box h3 { color: #ff5c6c; font-size: 0.95rem; margin-bottom: 8px; }
         .error-box p { margin-bottom: 6px; color: #c8c8e0; }
         .error-box strong { color: #ff9ba5; }
-
         .error-box details {
             margin-top: 10px;
             padding-top: 10px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
-
-        .error-box summary {
-            cursor: pointer;
-            color: #6c63ff;
-            user-select: none;
-            font-weight: 600;
-        }
-
+        .error-box summary { cursor: pointer; color: #6c63ff; user-select: none; font-weight: 600; }
         .error-box pre {
             margin-top: 8px;
             padding: 10px;
@@ -259,7 +244,6 @@
             color: #c8c8e0;
         }
 
-        /* ===== ГЕНЕРАТОР ===== */
         .gen-input-group { display: flex; gap: 10px; margin-bottom: 12px; }
 
         #qr-text {
@@ -329,7 +313,6 @@
         #share-qr-btn { background: #17a2b8; color: #fff; }
         #download-qr-btn { background: #2a2a45; color: #c8c8e0; }
 
-        /* ===== ИСТОРИЯ ===== */
         #history-list { list-style: none; }
 
         #history-list li {
@@ -490,11 +473,7 @@
             document.querySelectorAll('.tab-content').forEach(c => {
                 c.classList.toggle('active', c.id === tabId);
             });
-
-            if (tabId !== 'scanner' && isScanning) {
-                stopScanning();
-            }
-
+            if (tabId !== 'scanner' && isScanning) stopScanning();
             if (tabId === 'history') renderHistory();
         }
 
@@ -505,7 +484,7 @@
         }
 
         // ============================================================
-        //  СКАНЕР — МАКСИМАЛЬНО ПРОСТАЯ КОНФИГУРАЦИЯ
+        //  СКАНЕР
         // ============================================================
         function initScanner() {
             if (typeof Html5Qrcode === 'undefined') {
@@ -514,7 +493,6 @@
             }
 
             try {
-                // Без опций вообще — как в документации
                 html5QrCode = new Html5Qrcode("reader");
             } catch (err) {
                 showScanError('Не удалось инициализировать сканер', err?.message || String(err));
@@ -545,129 +523,162 @@
             btnStart.disabled = true;
             btnStart.textContent = '⏳ Запуск...';
 
-            // Скрываем предыдущие ошибки
             document.getElementById('scan-error').style.display = 'none';
             document.getElementById('scan-result-container').style.display = 'none';
 
-            // Проверка окружения ДО запуска
+            // Ранние проверки окружения
             if (!window.isSecureContext) {
-                showScanError(
-                    'Небезопасное соединение',
-                    'Камера доступна только по HTTPS или на localhost. Откройте страницу по https:// — например, через GitHub Pages.'
-                );
+                showScanError('Небезопасное соединение', 'Камера доступна только по HTTPS или на localhost. Откройте страницу по https:// (например, через GitHub Pages).');
                 resetStartButton();
                 return;
             }
-
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                showScanError(
-                    'Браузер не поддерживает камеру',
-                    'navigator.mediaDevices.getUserMedia отсутствует. Используйте современный браузер (Chrome, Safari, Firefox).'
-                );
+                showScanError('Браузер не поддерживает камеру', 'navigator.mediaDevices.getUserMedia отсутствует. Используйте современный браузер.');
                 resetStartButton();
                 return;
             }
 
-            // Конфиг — минимальный, как в документации
+            // ✅ УЛУЧШЕННЫЙ КОНФИГ: fps 25 + динамический qrbox 75%
             const config = {
-                fps: 15,
-                qrbox: { width: 250, height: 250 }
+                fps: 25,
+                qrbox: (vw, vh) => {
+                    const minEdge = Math.min(vw, vh);
+                    const size = Math.max(200, Math.min(400, Math.floor(minEdge * 0.75)));
+                    return { width: size, height: size };
+                },
+                disableFlip: false
             };
 
-            // Одна попытка с простым constraints
-            try {
-                await html5QrCode.start(
-                    { facingMode: "environment" },
-                    config,
-                    onScanSuccess,
-                    onScanError
-                );
+            // ✅ КАСКАД ПОПЫТОК: Full HD → HD → простой
+            const attempts = [
+                {
+                    label: 'full-hd (1920×1080)',
+                    constraints: {
+                        facingMode: "environment",
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                },
+                {
+                    label: 'hd (1280×720)',
+                    constraints: {
+                        facingMode: "environment",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                },
+                {
+                    label: 'simple (без constraints)',
+                    constraints: { facingMode: "environment" }
+                }
+            ];
 
-                isScanning = true;
-                btnStart.textContent = '⏹ Остановить';
-                btnStart.classList.add('is-scanning');
-                btnStart.disabled = false;
+            let started = false;
+            let firstErr = null;
+            let lastErr = null;
 
-                await checkTorchSupport();
-                return;
-
-            } catch (firstErr) {
-                console.warn('Первый запуск не удался:', firstErr?.name, firstErr?.message);
-
-                // Освобождаем ресурсы
-                try { await html5QrCode.stop(); } catch (e) {}
-                await new Promise(r => setTimeout(r, 500));
-
-                // Попытка 2 — через devices list
+            for (const attempt of attempts) {
                 try {
-                    const devices = await Html5Qrcode.getCameras();
-                    if (!devices || devices.length === 0) {
-                        showScanError(
-                            'Камеры не найдены',
-                            'Устройство не сообщает о наличии камер. Проверьте, что камера не отключена в системе.',
-                            { firstError: formatError(firstErr), devices: [] }
-                        );
-                        resetStartButton();
-                        return;
-                    }
-
-                    // Выбираем заднюю, если есть, иначе первую
-                    let cameraId = devices[0].id;
-                    for (const d of devices) {
-                        const label = (d.label || '').toLowerCase();
-                        if (label.includes('back') || label.includes('rear') || label.includes('задн') || label.includes('environment')) {
-                            cameraId = d.id;
-                            break;
-                        }
-                    }
-
                     await html5QrCode.start(
-                        cameraId,
+                        attempt.constraints,
                         config,
                         onScanSuccess,
                         onScanError
                     );
+                    console.log(`✓ Камера запущена: ${attempt.label}`);
+                    started = true;
+                    break;
+                } catch (e) {
+                    console.warn(`✗ Попытка "${attempt.label}" не удалась:`, e?.name, e?.message);
+                    if (!firstErr) firstErr = e;
+                    lastErr = e;
+                    try { await html5QrCode.stop(); } catch (_) {}
+                    await new Promise(r => setTimeout(r, 400));
+                }
+            }
 
-                    isScanning = true;
-                    btnStart.textContent = '⏹ Остановить';
-                    btnStart.classList.add('is-scanning');
-                    btnStart.disabled = false;
-
-                    await checkTorchSupport();
-                    return;
-
-                } catch (secondErr) {
-                    console.error('Второй запуск не удался:', secondErr);
-                    try { await html5QrCode.stop(); } catch (e) {}
-
-                    // Собираем диагностику
-                    let devices = [];
-                    try {
-                        const list = await navigator.mediaDevices.enumerateDevices();
-                        devices = list
-                            .filter(d => d.kind === 'videoinput')
-                            .map(d => ({ label: d.label || '(без имени)', id: d.deviceId ? d.deviceId.substring(0, 8) + '…' : '—' }));
-                    } catch (e) {}
-
-                    showScanError(
-                        'Не удалось запустить камеру',
-                        'Ни один способ не сработал. Смотрите диагностику ниже и пришлите её скриншот.',
-                        {
-                            firstError: formatError(firstErr),
-                            secondError: formatError(secondErr),
-                            devices,
-                            diagnostics: {
-                                isSecureContext: window.isSecureContext,
-                                protocol: window.location.protocol,
-                                hostname: window.location.hostname,
-                                userAgent: navigator.userAgent,
-                                mediaDevices: !!navigator.mediaDevices,
-                                getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
-                                permissionsAPI: !!navigator.permissions
+            // Последний fallback — по deviceId
+            if (!started) {
+                try {
+                    const devices = await Html5Qrcode.getCameras();
+                    if (devices && devices.length > 0) {
+                        let cameraId = devices[0].id;
+                        for (const d of devices) {
+                            const label = (d.label || '').toLowerCase();
+                            if (label.includes('back') || label.includes('rear') ||
+                                label.includes('задн') || label.includes('environment')) {
+                                cameraId = d.id;
+                                break;
                             }
                         }
-                    );
-                    resetStartButton();
+                        await html5QrCode.start(cameraId, config, onScanSuccess, onScanError);
+                        console.log('✓ Камера запущена по deviceId:', cameraId.substring(0, 8));
+                        started = true;
+                    }
+                } catch (e) {
+                    console.warn('✗ Fallback по deviceId не удался:', e?.name, e?.message);
+                    lastErr = e;
+                }
+            }
+
+            if (!started) {
+                let devices = [];
+                try {
+                    const list = await navigator.mediaDevices.enumerateDevices();
+                    devices = list
+                        .filter(d => d.kind === 'videoinput')
+                        .map(d => ({ label: d.label || '(без имени)', id: d.deviceId ? d.deviceId.substring(0, 8) + '…' : '—' }));
+                } catch (e) {}
+
+                showScanError(
+                    'Не удалось запустить камеру',
+                    'Все попытки запуска провалились. Смотрите диагностику ниже и пришлите её скриншот.',
+                    {
+                        firstError: formatError(firstErr),
+                        lastError: formatError(lastErr),
+                        devices,
+                        diagnostics: {
+                            isSecureContext: window.isSecureContext,
+                            protocol: window.location.protocol,
+                            hostname: window.location.hostname,
+                            userAgent: navigator.userAgent,
+                            mediaDevices: !!navigator.mediaDevices,
+                            getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+                        }
+                    }
+                );
+                resetStartButton();
+                return;
+            }
+
+            isScanning = true;
+            btnStart.textContent = '⏹ Остановить';
+            btnStart.classList.add('is-scanning');
+            btnStart.disabled = false;
+
+            // ✅ Включаем непрерывный автофокус (критично для размытых кодов)
+            await applyContinuousFocus();
+
+            await checkTorchSupport();
+        }
+
+        // ✅ Непрерывный автофокус — ключ к чтению плохих кодов
+        async function applyContinuousFocus() {
+            try {
+                await html5QrCode.applyVideoConstraints({
+                    advanced: [{ focusMode: "continuous" }]
+                });
+                console.log('✓ Continuous focus enabled');
+            } catch (e) {
+                console.warn('Continuous focus не удался:', e?.message);
+                // Пробуем single-shot как fallback
+                try {
+                    await html5QrCode.applyVideoConstraints({
+                        advanced: [{ focusMode: "single-shot" }]
+                    });
+                    console.log('✓ Single-shot focus enabled');
+                } catch (e2) {
+                    console.warn('Focus mode недоступен:', e2?.message);
                 }
             }
         }
@@ -757,7 +768,6 @@
             } catch (e) {
                 torchSupported = false;
             }
-
             btnTorch.disabled = !torchSupported;
             btnTorch.title = torchSupported ? 'Включить фонарик' : 'Фонарик не поддерживается';
         }
@@ -788,11 +798,8 @@
         async function onFileSelected(event) {
             const file = event.target.files?.[0];
             if (!file) return;
-
             if (isScanning) await stopScanning();
-
             document.getElementById('scan-error').style.display = 'none';
-
             try {
                 const result = await html5QrCode.scanFile(file, true);
                 handleScanResult(result, null);
@@ -800,7 +807,6 @@
                 console.error('Ошибка сканирования файла:', err);
                 showScanError('Не удалось распознать файл', 'Попробуйте другое изображение с чётким QR/DataMatrix.');
             }
-
             event.target.value = '';
         }
 
@@ -1042,12 +1048,9 @@
 
         function shareQRImage(canvas, text) {
             if (!canvas) { shareText(text); return; }
-
             canvas.toBlob(async (blob) => {
                 if (!blob) { shareText(text); return; }
-
                 const file = new File([blob], 'qr-code.png', { type: 'image/png' });
-
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     try {
                         await navigator.share({ files: [file], title: 'QR-код', text: text });
