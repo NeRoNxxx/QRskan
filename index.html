@@ -80,6 +80,38 @@
             background: #17a2b8;
         }
         .btn-share:hover { background: #138496; }
+        .gs1-badge {
+            display: inline-block;
+            background: #6f42c1;
+            color: #fff;
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-right: 6px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+        }
+        .raw-details {
+            margin-top: 6px;
+            font-size: 0.8rem;
+        }
+        .raw-details summary {
+            cursor: pointer;
+            color: #007bff;
+            user-select: none;
+        }
+        .raw-details code {
+            display: block;
+            padding: 6px 8px;
+            background: #fff;
+            border-radius: 4px;
+            margin-top: 4px;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: #333;
+        }
 
         /* Стили для генератора */
         .gen-input-group { display: flex; gap: 10px; margin-bottom: 16px; }
@@ -186,13 +218,11 @@
             <button class="tab-btn" data-tab="history">История</button>
         </div>
 
-        <!-- Вкладка 1: Сканер -->
         <div id="scanner" class="tab-content active">
             <div id="reader"></div>
             <div id="scan-result-container" class="scan-result" style="display:none;"></div>
         </div>
 
-        <!-- Вкладка 2: Генератор -->
         <div id="generator" class="tab-content">
             <div class="gen-input-group">
                 <input type="text" id="qr-text" placeholder="Введите текст или ссылку...">
@@ -206,7 +236,6 @@
             <div id="gen-result" class="scan-result" style="display:none;"></div>
         </div>
 
-        <!-- Вкладка 3: История -->
         <div id="history" class="tab-content">
             <ul id="history-list"></ul>
             <div id="empty-history" class="empty-history" style="display:none;">История пуста.</div>
@@ -217,7 +246,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.4.4/qrcode.min.js"></script>
 
     <script>
-        // --- Инициализация ---
         document.addEventListener('DOMContentLoaded', () => {
             initTabs();
             initScanner();
@@ -253,6 +281,30 @@
             });
         }
 
+        // --- Очистка текста от служебных символов ---
+        function cleanScanText(text) {
+            if (!text) return '';
+            let cleaned = String(text);
+
+            // 1. Убираем symbology identifier prefix (]d2, ]Q3, ]C1, ]e0 и т.п.)
+            cleaned = cleaned.replace(/^\][A-Za-z]\d/, '');
+
+            // 2. FNC1 / GS (ASCII 29, \x1D) → видимый разделитель
+            cleaned = cleaned.replace(/\x1D/g, ' | ');
+
+            // 3. Прочие управляющие символы (кроме \t и \n)
+            cleaned = cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+            // 4. Убираем двойные пробелы от предыдущих замен
+            cleaned = cleaned.replace(/ {2,}/g, ' ');
+
+            return cleaned.trim();
+        }
+
+        function isGS1Text(text) {
+            return /\x1D/.test(String(text));
+        }
+
         // --- Сканер ---
         let html5QrcodeScanner = null;
         let lastScanText = '';
@@ -266,12 +318,10 @@
                     {
                         fps: 10,
                         qrbox: { width: 250, height: 250 },
-                        // Поддержка QR-кодов и DataMatrix
                         formatsToSupport: [
                             Html5QrcodeSupportedFormats.QR_CODE,
                             Html5QrcodeSupportedFormats.DATA_MATRIX
                         ],
-                        // Отключаем нативный BarcodeDetector — ZXing гарантированно умеет DataMatrix
                         useBarCodeDetectorIfSupported: false
                     },
                     false
@@ -288,13 +338,15 @@
         }
 
         function onScanSuccess(decodedText, decodedResult) {
-            const text = String(decodedText);
+            const rawText = String(decodedText);
             const now = Date.now();
-            if (text === lastScanText && now - lastScanTime < SCAN_DEBOUNCE_MS) {
-                return;
-            }
-            lastScanText = text;
+            if (rawText === lastScanText && now - lastScanTime < SCAN_DEBOUNCE_MS) return;
+            lastScanText = rawText;
             lastScanTime = now;
+
+            const displayText = cleanScanText(rawText);
+            const gs1 = isGS1Text(rawText);
+            const hasHidden = rawText !== displayText;
 
             const resultContainer = document.getElementById('scan-result-container');
             resultContainer.style.display = 'block';
@@ -303,32 +355,63 @@
             const row = document.createElement('div');
             row.className = 'result-row';
 
-            const textSpan = document.createElement('span');
-            textSpan.className = 'result-text';
-            textSpan.innerHTML = `<strong>Результат:</strong> ${escapeHtml(text)}`;
+            const textWrap = document.createElement('div');
+            textWrap.className = 'result-text';
 
+            // Бейдж GS1
+            if (gs1) {
+                const badge = document.createElement('span');
+                badge.className = 'gs1-badge';
+                badge.textContent = 'GS1';
+                badge.title = 'GS1 DataMatrix: разделители FNC1 показаны как |';
+                textWrap.appendChild(badge);
+            }
+
+            const textSpan = document.createElement('span');
+            textSpan.innerHTML = `<strong>Результат:</strong> ${escapeHtml(displayText)}`;
+            textWrap.appendChild(textSpan);
+
+            // Раскрывающийся блок с исходными данными (если есть скрытые символы)
+            if (hasHidden) {
+                const details = document.createElement('details');
+                details.className = 'raw-details';
+
+                const summary = document.createElement('summary');
+                summary.textContent = 'Показать исходные данные';
+
+                const rawCode = document.createElement('code');
+                // Показываем FNC1 как видимый маркер ␝
+                rawCode.textContent = rawText.replace(/\x1D/g, '␝');
+
+                details.appendChild(summary);
+                details.appendChild(rawCode);
+                textWrap.appendChild(details);
+            }
+
+            // Кнопки
             const actions = document.createElement('div');
             actions.className = 'result-actions';
 
             const genBtn = document.createElement('button');
             genBtn.className = 'btn-small';
             genBtn.textContent = '↻ Сгенерировать';
-            genBtn.title = 'Открыть этот текст в генераторе QR-кодов';
-            genBtn.onclick = () => useScannedText(text);
+            genBtn.title = 'Создать QR-код из этого текста';
+            genBtn.onclick = () => useScannedText(displayText);
 
             const shareBtn = document.createElement('button');
             shareBtn.className = 'btn-small btn-share';
             shareBtn.textContent = '📤 Поделиться';
             shareBtn.title = 'Поделиться в другом приложении';
-            shareBtn.onclick = () => shareText(text);
+            shareBtn.onclick = () => shareText(displayText);
 
             actions.appendChild(genBtn);
             actions.appendChild(shareBtn);
-            row.appendChild(textSpan);
+            row.appendChild(textWrap);
             row.appendChild(actions);
             resultContainer.appendChild(row);
 
-            addToHistory(text, 'scan');
+            // В историю сохраняем ОЧИЩЕННЫЙ текст
+            addToHistory(displayText, 'scan');
         }
 
         function onScanError(err) {}
@@ -448,7 +531,7 @@
             }, 'image/png');
         }
 
-        // --- Toast-уведомления ---
+        // --- Toast ---
         function showToast(message) {
             let toast = document.getElementById('app-toast');
             if (!toast) {
@@ -527,7 +610,8 @@
 
                 const textSpan = document.createElement('span');
                 textSpan.className = 'history-item-text';
-                textSpan.textContent = item.text;
+                // На всякий случай чистим и в истории (если там старые записи с \x1D)
+                textSpan.textContent = cleanScanText(item.text);
 
                 const regenBtn = document.createElement('button');
                 regenBtn.className = 'regen-btn';
@@ -535,7 +619,7 @@
                 regenBtn.title = 'Сгенерировать QR из этого текста';
                 regenBtn.onclick = (e) => {
                     e.stopPropagation();
-                    useScannedText(item.text);
+                    useScannedText(cleanScanText(item.text));
                 };
 
                 const delBtn = document.createElement('button');
