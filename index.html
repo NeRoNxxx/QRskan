@@ -95,9 +95,9 @@
         /* ===== СКАНЕР ===== */
         #reader {
             width: 100%;
-            height: 50vh;
-            min-height: 280px;
-            max-height: 500px;
+            height: 55vh;
+            min-height: 300px;
+            max-height: 520px;
             border-radius: 18px;
             overflow: hidden;
             margin-bottom: 14px;
@@ -105,11 +105,21 @@
             position: relative;
         }
 
+        /* Заставляем видео заполнять весь контейнер как нативное приложение камеры */
         #reader video {
-            border-radius: 18px;
-            object-fit: cover;
+            border-radius: 18px !important;
+            object-fit: cover !important;
             width: 100% !important;
             height: 100% !important;
+            display: block !important;
+        }
+
+        /* Скрываем стандартный UI html5-qrcode (если остался) */
+        #reader__dashboard,
+        #reader__header_message,
+        #reader__scan_region > img,
+        #reader__scan_region > br {
+            display: none !important;
         }
 
         .scanner-controls {
@@ -141,14 +151,8 @@
             box-shadow: 0 4px 16px rgba(108, 99, 255, 0.35);
         }
 
-        .btn-start:active {
-            transform: scale(0.97);
-        }
-
-        .btn-start:disabled {
-            opacity: 0.5;
-            pointer-events: none;
-        }
+        .btn-start:active { transform: scale(0.97); }
+        .btn-start:disabled { opacity: 0.5; pointer-events: none; }
 
         .btn-start.is-scanning {
             background: linear-gradient(135deg, #dc3545, #ff5c6c);
@@ -160,9 +164,7 @@
             color: #c8c8e0;
         }
 
-        .btn-file:active {
-            transform: scale(0.97);
-        }
+        .btn-file:active { transform: scale(0.97); }
 
         .btn-torch {
             background: #2a2a45;
@@ -178,10 +180,7 @@
             box-shadow: 0 4px 16px rgba(240, 192, 64, 0.4);
         }
 
-        .btn-torch:disabled {
-            opacity: 0.35;
-            pointer-events: none;
-        }
+        .btn-torch:disabled { opacity: 0.35; pointer-events: none; }
 
         .scan-result {
             padding: 14px 16px;
@@ -194,9 +193,7 @@
             border: 1px solid rgba(108, 99, 255, 0.15);
         }
 
-        .scan-result strong {
-            color: #a78bfa;
-        }
+        .scan-result strong { color: #a78bfa; }
 
         .result-actions {
             display: flex;
@@ -215,20 +212,9 @@
             transition: 0.2s;
         }
 
-        .btn-regen {
-            background: #6c63ff;
-            color: #fff;
-        }
-
-        .btn-gs1 {
-            background: #8b5cf6;
-            color: #fff;
-        }
-
-        .btn-share {
-            background: #17a2b8;
-            color: #fff;
-        }
+        .btn-regen { background: #6c63ff; color: #fff; }
+        .btn-gs1 { background: #8b5cf6; color: #fff; }
+        .btn-share { background: #17a2b8; color: #fff; }
 
         .gs1-badge {
             display: inline-block;
@@ -243,17 +229,8 @@
             vertical-align: middle;
         }
 
-        .raw-details {
-            margin-top: 8px;
-            font-size: 0.78rem;
-        }
-
-        .raw-details summary {
-            cursor: pointer;
-            color: #6c63ff;
-            user-select: none;
-        }
-
+        .raw-details { margin-top: 8px; font-size: 0.78rem; }
+        .raw-details summary { cursor: pointer; color: #6c63ff; user-select: none; }
         .raw-details code {
             display: block;
             padding: 8px 10px;
@@ -267,11 +244,7 @@
         }
 
         /* ===== ГЕНЕРАТОР ===== */
-        .gen-input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
+        .gen-input-group { display: flex; gap: 10px; margin-bottom: 12px; }
 
         #qr-text {
             flex: 1;
@@ -285,13 +258,8 @@
             transition: border-color 0.2s;
         }
 
-        #qr-text:focus {
-            border-color: #6c63ff;
-        }
-
-        #qr-text::placeholder {
-            color: #5a5a7a;
-        }
+        #qr-text:focus { border-color: #6c63ff; }
+        #qr-text::placeholder { color: #5a5a7a; }
 
         .btn-generate {
             padding: 14px 20px;
@@ -307,15 +275,9 @@
             white-space: nowrap;
         }
 
-        .btn-generate:active {
-            transform: scale(0.97);
-        }
+        .btn-generate:active { transform: scale(0.97); }
 
-        .gen-options {
-            margin-bottom: 16px;
-            font-size: 0.85rem;
-        }
-
+        .gen-options { margin-bottom: 16px; font-size: 0.85rem; }
         .gen-options label {
             display: flex;
             align-items: center;
@@ -324,14 +286,12 @@
             user-select: none;
             color: #a0a0c0;
         }
-
         .gen-options input[type="checkbox"] {
             width: 18px;
             height: 18px;
             accent-color: #6c63ff;
             cursor: pointer;
         }
-
         .gen-options .hint {
             display: block;
             color: #5a5a7a;
@@ -374,20 +334,11 @@
             transition: 0.2s;
         }
 
-        #share-qr-btn {
-            background: #17a2b8;
-            color: #fff;
-        }
-
-        #download-qr-btn {
-            background: #2a2a45;
-            color: #c8c8e0;
-        }
+        #share-qr-btn { background: #17a2b8; color: #fff; }
+        #download-qr-btn { background: #2a2a45; color: #c8c8e0; }
 
         /* ===== ИСТОРИЯ ===== */
-        #history-list {
-            list-style: none;
-        }
+        #history-list { list-style: none; }
 
         #history-list li {
             background: #12121f;
@@ -440,20 +391,9 @@
             font-weight: 700;
         }
 
-        .delete-btn {
-            background: #dc3545;
-            color: #fff;
-        }
-
-        .regen-btn {
-            background: #6c63ff;
-            color: #fff;
-            margin-right: 5px;
-        }
-
-        .regen-btn.gs1 {
-            background: #8b5cf6;
-        }
+        .delete-btn { background: #dc3545; color: #fff; }
+        .regen-btn { background: #6c63ff; color: #fff; margin-right: 5px; }
+        .regen-btn.gs1 { background: #8b5cf6; }
 
         .empty-history {
             text-align: center;
@@ -481,9 +421,7 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
 
-        #file-input {
-            display: none;
-        }
+        #file-input { display: none; }
     </style>
 </head>
 <body>
@@ -499,28 +437,22 @@
             <button class="tab-btn" data-tab="history">История</button>
         </div>
 
-        <!-- ===== СКАНЕР ===== -->
         <div id="scanner" class="tab-content active">
             <div id="reader"></div>
-
             <div class="scanner-controls">
                 <button id="btn-start" class="btn-start">▶ Старт сканирования</button>
                 <button id="btn-file" class="btn-file">📁 Скан файла</button>
                 <button id="btn-torch" class="btn-torch" disabled title="Фонарик">🔦</button>
             </div>
-
             <input type="file" id="file-input" accept="image/*" capture="environment">
-
             <div id="scan-result-container" class="scan-result" style="display: none;"></div>
         </div>
 
-        <!-- ===== ГЕНЕРАТОР ===== -->
         <div id="generator" class="tab-content">
             <div class="gen-input-group">
                 <input type="text" id="qr-text" placeholder="Введите текст или ссылку...">
                 <button id="generate-btn" class="btn-generate">Создать</button>
             </div>
-
             <div class="gen-options">
                 <label>
                     <input type="checkbox" id="gs1-mode-checkbox">
@@ -528,18 +460,14 @@
                 </label>
                 <span class="hint">Добавляет исходные разделители FNC1 в QR-код (визуально не видны)</span>
             </div>
-
             <div id="qr-canvas-container"></div>
-
             <div id="qr-actions" class="qr-actions" style="display: none;">
                 <button id="share-qr-btn" type="button">📤 Поделиться</button>
                 <button id="download-qr-btn" type="button">💾 Скачать PNG</button>
             </div>
-
             <div id="gen-result" class="scan-result" style="display: none;"></div>
         </div>
 
-        <!-- ===== ИСТОРИЯ ===== -->
         <div id="history" class="tab-content">
             <ul id="history-list"></ul>
             <div id="empty-history" class="empty-history" style="display: none;">История пуста</div>
@@ -603,16 +531,38 @@
         //  СКАНЕР
         // ============================================================
         function initScanner() {
-            html5QrCode = new Html5Qrcode("reader", {
-                formatsToSupport: [
-                    Html5QrcodeSupportedFormats.QR_CODE,
-                    Html5QrcodeSupportedFormats.DATA_MATRIX
-                ],
-                useBarCodeDetectorIfSupported: false,
-                verbose: false
-            });
+            // Проверка загрузки библиотеки
+            if (typeof Html5Qrcode === 'undefined') {
+                console.error('Библиотека html5-qrcode не загружена');
+                document.getElementById('btn-start').disabled = true;
+                return;
+            }
 
-            // ✅ Toggle: старт / стоп
+            try {
+                const config = { verbose: false };
+
+                // Форматы добавляем только если enum доступен
+                if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+                    config.formatsToSupport = [
+                        Html5QrcodeSupportedFormats.QR_CODE,
+                        Html5QrcodeSupportedFormats.DATA_MATRIX
+                    ];
+                }
+
+                html5QrCode = new Html5Qrcode("reader", config);
+            } catch (err) {
+                console.error('Не удалось создать Html5Qrcode:', err);
+                // Fallback — без конфига
+                try {
+                    html5QrCode = new Html5Qrcode("reader");
+                } catch (e2) {
+                    console.error('Fallback тоже не сработал:', e2);
+                    alert('Сканер не инициализирован. Обновите страницу.');
+                    return;
+                }
+            }
+
+            // Toggle старт/стоп
             document.getElementById('btn-start').addEventListener('click', () => {
                 if (isScanning || isStopping) {
                     stopScanning();
@@ -636,47 +586,83 @@
 
         async function startScanning() {
             if (isScanning || isStopping) return;
+            if (!html5QrCode) {
+                alert('Сканер не инициализирован. Обновите страницу.');
+                return;
+            }
 
             const btnStart = document.getElementById('btn-start');
             btnStart.disabled = true;
             btnStart.textContent = '⏳ Запуск...';
 
-            try {
-                // Задняя камера + HD-разрешение для быстрого распознавания
-                await html5QrCode.start(
-                    {
-                        facingMode: { ideal: "environment" },
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    },
-                    {
-                        fps: 25,
-                        // qrbox = 70% от меньшей стороны viewfinder
-                        qrbox: (viewfinderWidth, viewfinderHeight) => {
-                            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                            const size = Math.floor(minEdge * 0.7);
-                            return { width: size, height: size };
-                        },
-                        disableFlip: false
-                    },
-                    onScanSuccess,
-                    onScanError
-                );
+            // Размер рамки — 65% от меньшей стороны окна, максимум 280px
+            const boxSize = Math.min(280, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.65));
 
-                isScanning = true;
-                btnStart.textContent = '⏹ Остановить';
-                btnStart.classList.add('is-scanning');
-                btnStart.disabled = false;
+            const scanConfig = {
+                fps: 20,
+                qrbox: { width: boxSize, height: boxSize }
+            };
 
-                await checkTorchSupport();
+            // ✅ Безопасные попытки запуска: от простого к самому мягкому
+            const attempts = [
+                { facingMode: "environment" },          // стандарт для задней камеры
+                { facingMode: { ideal: "environment" } }, // более мягкий вариант
+                {}                                       // любая камера (fallback)
+            ];
 
-            } catch (err) {
-                console.error('Ошибка запуска камеры:', err);
+            let lastError = null;
+            let started = false;
+
+            for (let i = 0; i < attempts.length; i++) {
+                try {
+                    await html5QrCode.start(
+                        attempts[i],
+                        scanConfig,
+                        onScanSuccess,
+                        onScanError
+                    );
+                    started = true;
+                    console.log(`Камера запущена (попытка ${i + 1})`);
+                    break;
+                } catch (err) {
+                    console.warn(`Попытка ${i + 1} не удалась:`, err?.name, err?.message);
+                    lastError = err;
+                    // Освобождаем камеру перед следующей попыткой
+                    try { await html5QrCode.stop(); } catch (e) {}
+                    await new Promise(r => setTimeout(r, 400));
+                }
+            }
+
+            if (!started) {
+                console.error('Камера не запустилась:', lastError);
                 btnStart.textContent = '▶ Старт сканирования';
                 btnStart.classList.remove('is-scanning');
                 btnStart.disabled = false;
-                alert('Не удалось запустить камеру. Проверьте разрешения и что страница открыта по HTTPS.');
+
+                const errName = lastError?.name || 'Unknown';
+                const errMsg = lastError?.message || '';
+
+                let hints = 'Проверьте:\n• Разрешение на камеру в браузере\n• HTTPS или localhost\n• Камера не занята другим приложением';
+                if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+                    hints = 'Вы отклонили доступ к камере.\n\nОткройте настройки браузера и разрешите камеру для этого сайта, затем обновите страницу.';
+                } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+                    hints = 'Камера не найдена. Проверьте, что устройство имеет камеру.';
+                } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+                    hints = 'Камера занята другим приложением.\n\nЗакройте другие приложения с камерой и попробуйте снова.';
+                } else if (errName === 'OverconstrainedError') {
+                    hints = 'Не удалось подобрать параметры камеры. Попробуйте перезагрузить страницу.';
+                }
+
+                alert(`Не удалось запустить камеру.\n\nОшибка: ${errName}\n${errMsg ? `Детали: ${errMsg}\n\n` : '\n'}${hints}`);
+                return;
             }
+
+            isScanning = true;
+            btnStart.textContent = '⏹ Остановить';
+            btnStart.classList.add('is-scanning');
+            btnStart.disabled = false;
+
+            await checkTorchSupport();
         }
 
         async function stopScanning() {
@@ -686,7 +672,6 @@
             isStopping = true;
             isScanning = false;
 
-            // Фонарик гасим до остановки камеры
             if (torchOn) {
                 try { await setTorch(false); } catch (e) {}
             }
@@ -697,7 +682,6 @@
                 console.warn('Ошибка остановки камеры:', e);
             }
 
-            // Сброс дебаунса — чтобы можно было снова сканировать тот же код
             lastScanText = '';
             lastScanTime = 0;
 
@@ -787,10 +771,9 @@
             lastScanText = rawText;
             lastScanTime = now;
 
-            // Показываем результат
             handleScanResult(rawText, decodedResult);
 
-            // ✅ Автоотключение сканера после успешного скана
+            // ✅ Автоотключение после успешного скана
             if (isScanning) {
                 stopScanning();
             }
