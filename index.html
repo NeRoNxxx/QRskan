@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR-Сканер и Генератор</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f7f6;
+            color: #333;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 24px;
+        }
+        h1 { text-align: center; margin-bottom: 24px; font-size: 1.8rem; }
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            cursor: pointer;
+            color: #666;
+            transition: 0.3s;
+        }
+        .tab-btn.active {
+            color: #007bff;
+            border-bottom: 3px solid #007bff;
+            font-weight: 600;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Стили для сканера */
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+        .scan-result {
+            padding: 12px;
+            background: #e9f7ff;
+            border-radius: 8px;
+            margin-top: 12px;
+            word-break: break-all;
+            font-size: 0.9rem;
+        }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .result-text {
+            flex: 1;
+            min-width: 150px;
+        }
+        .result-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .btn-small {
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            background: #fd7e14;
+            white-space: nowrap;
+        }
+        .btn-small:hover { background: #d9640a; }
+        .btn-share {
+            background: #17a2b8;
+        }
+        .btn-share:hover { background: #138496; }
+
+        /* Стили для генератора */
+        .gen-input-group { display: flex; gap: 10px; margin-bottom: 16px; }
+        #qr-text {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        button {
+            padding: 12px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #qr-canvas-container {
+            display: flex;
+            justify-content: center;
+            margin: 16px 0;
+            min-height: 200px;
+            align-items: center;
+        }
+        #qr-canvas-container canvas, #qr-canvas-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        .qr-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        #share-qr-btn { background: #17a2b8; }
+        #share-qr-btn:hover { background: #138496; }
+        #download-qr-btn { background: #6c757d; }
+        #download-qr-btn:hover { background: #5a6268; }
+
+        /* Стили для истории */
+        #history-list { list-style: none; }
+        #history-list li {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+        .history-item-text { flex: 1; margin-right: 10px; }
+        .history-item-type {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: white;
+            margin-right: 8px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .type-scan { background: #28a745; }
+        .type-generate { background: #fd7e14; }
+        .delete-btn {
+            background: #dc3545;
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .delete-btn:hover { background: #a71d2a; }
+        .regen-btn {
+            background: #fd7e14;
+            color: white;
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            margin-right: 6px;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .regen-btn:hover { background: #d9640a; }
+        .empty-history { text-align: center; color: #888; padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📷 QR-Инструменты</h1>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="scanner">Сканер</button>
+            <button class="tab-btn" data-tab="generator">Генератор</button>
+            <button class="tab-btn" data-tab="history">История</button>
+        </div>
+
+        <!-- Вкладка 1: Сканер -->
+        <div id="scanner" class="tab-content active">
+            <div id="reader"></div>
+            <div id="scan-result-container" class="scan-result" style="display:none;"></div>
+        </div>
+
+        <!-- Вкладка 2: Генератор -->
+        <div id="generator" class="tab-content">
+            <div class="gen-input-group">
+                <input type="text" id="qr-text" placeholder="Введите текст или ссылку...">
+                <button id="generate-btn">Создать</button>
+            </div>
+            <div id="qr-canvas-container"></div>
+            <div id="qr-actions" class="qr-actions" style="display:none;">
+                <button id="share-qr-btn" type="button">📤 Поделиться</button>
+                <button id="download-qr-btn" type="button">💾 Скачать PNG</button>
+            </div>
+            <div id="gen-result" class="scan-result" style="display:none;"></div>
+        </div>
+
+        <!-- Вкладка 3: История -->
+        <div id="history" class="tab-content">
+            <ul id="history-list"></ul>
+            <div id="empty-history" class="empty-history" style="display:none;">История пуста.</div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/html5-qrcode@2.3.8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.4.4/qrcode.min.js"></script>
+
+    <script>
+        // --- Инициализация ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initTabs();
+            initScanner();
+            initGenerator();
+            renderHistory();
+        });
+
+        // --- Логика вкладок ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.tab === tabId);
+            });
+            document.querySelectorAll('.tab-content').forEach(c => {
+                c.classList.toggle('active', c.id === tabId);
+            });
+
+            if (html5QrcodeScanner) {
+                try {
+                    if (tabId === 'scanner') {
+                        html5QrcodeScanner.resume();
+                    } else {
+                        html5QrcodeScanner.pause(true);
+                    }
+                } catch (e) {}
+            }
+
+            if (tabId === 'history') renderHistory();
+        }
+
+        function initTabs() {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+            });
+        }
+
+        // --- Сканер ---
+        let html5QrcodeScanner = null;
+        let lastScanText = '';
+        let lastScanTime = 0;
+        const SCAN_DEBOUNCE_MS = 3000;
+
+        function initScanner() {
+            try {
+                html5QrcodeScanner = new Html5QrcodeScanner(
+                    "reader",
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 },
+                        // Поддержка QR-кодов и DataMatrix
+                        formatsToSupport: [
+                            Html5QrcodeSupportedFormats.QR_CODE,
+                            Html5QrcodeSupportedFormats.DATA_MATRIX
+                        ],
+                        // Отключаем нативный BarcodeDetector — ZXing гарантированно умеет DataMatrix
+                        useBarCodeDetectorIfSupported: false
+                    },
+                    false
+                );
+                html5QrcodeScanner.render(onScanSuccess, onScanError);
+            } catch (e) {
+                console.error('Не удалось инициализировать сканер:', e);
+                const reader = document.getElementById('reader');
+                if (reader) {
+                    reader.innerHTML = '<p style="padding:16px;color:#c00;text-align:center;">' +
+                        'Не удалось запустить камеру. Проверьте разрешения и что страница открыта по HTTPS.</p>';
+                }
+            }
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            const text = String(decodedText);
+            const now = Date.now();
+            if (text === lastScanText && now - lastScanTime < SCAN_DEBOUNCE_MS) {
+                return;
+            }
+            lastScanText = text;
+            lastScanTime = now;
+
+            const resultContainer = document.getElementById('scan-result-container');
+            resultContainer.style.display = 'block';
+            resultContainer.innerHTML = '';
+
+            const row = document.createElement('div');
+            row.className = 'result-row';
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'result-text';
+            textSpan.innerHTML = `<strong>Результат:</strong> ${escapeHtml(text)}`;
+
+            const actions = document.createElement('div');
+            actions.className = 'result-actions';
+
+            const genBtn = document.createElement('button');
+            genBtn.className = 'btn-small';
+            genBtn.textContent = '↻ Сгенерировать';
+            genBtn.title = 'Открыть этот текст в генераторе QR-кодов';
+            genBtn.onclick = () => useScannedText(text);
+
+            const shareBtn = document.createElement('button');
+            shareBtn.className = 'btn-small btn-share';
+            shareBtn.textContent = '📤 Поделиться';
+            shareBtn.title = 'Поделиться в другом приложении';
+            shareBtn.onclick = () => shareText(text);
+
+            actions.appendChild(genBtn);
+            actions.appendChild(shareBtn);
+            row.appendChild(textSpan);
+            row.appendChild(actions);
+            resultContainer.appendChild(row);
+
+            addToHistory(text, 'scan');
+        }
+
+        function onScanError(err) {}
+
+        function useScannedText(text) {
+            switchTab('generator');
+            document.getElementById('qr-text').value = text;
+            generateQR(text);
+        }
+
+        // --- Генератор ---
+        let lastGeneratedCanvas = null;
+        let lastGeneratedText = '';
+
+        function initGenerator() {
+            document.getElementById('generate-btn').addEventListener('click', () => {
+                const text = document.getElementById('qr-text').value.trim();
+                if (!text) {
+                    alert('Пожалуйста, введите текст или ссылку.');
+                    return;
+                }
+                generateQR(text);
+            });
+
+            document.getElementById('share-qr-btn').addEventListener('click', () => {
+                shareQRImage(lastGeneratedCanvas, lastGeneratedText);
+            });
+
+            document.getElementById('download-qr-btn').addEventListener('click', () => {
+                downloadQRImage(lastGeneratedCanvas);
+            });
+        }
+
+        function generateQR(text) {
+            const canvasContainer = document.getElementById('qr-canvas-container');
+            const genResult = document.getElementById('gen-result');
+            const qrActions = document.getElementById('qr-actions');
+
+            canvasContainer.innerHTML = '';
+            genResult.style.display = 'none';
+            qrActions.style.display = 'none';
+
+            QRCode.toCanvas(text, { width: 200, margin: 2 }, (error, canvas) => {
+                if (error) {
+                    console.error(error);
+                    alert('Не удалось сгенерировать QR-код.');
+                    return;
+                }
+                canvasContainer.appendChild(canvas);
+                lastGeneratedCanvas = canvas;
+                lastGeneratedText = text;
+
+                qrActions.style.display = 'flex';
+                genResult.style.display = 'block';
+                genResult.innerHTML = `<strong>Сгенерировано для:</strong> ${escapeHtml(text)}`;
+                addToHistory(text, 'generate');
+            });
+        }
+
+        // --- Поделиться ---
+        async function shareText(text) {
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: 'QR-код', text: text });
+                    return;
+                } catch (e) {
+                    if (e.name === 'AbortError') return;
+                    console.warn('Ошибка шаринга:', e);
+                }
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast('📋 Скопировано в буфер обмена');
+            } catch (e) {
+                prompt('Скопируйте текст:', text);
+            }
+        }
+
+        function shareQRImage(canvas, text) {
+            if (!canvas) { shareText(text); return; }
+
+            canvas.toBlob(async (blob) => {
+                if (!blob) { shareText(text); return; }
+
+                const file = new File([blob], 'qr-code.png', { type: 'image/png' });
+
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: 'QR-код',
+                            text: text
+                        });
+                        return;
+                    } catch (e) {
+                        if (e.name === 'AbortError') return;
+                        console.warn('Ошибка шаринга файла:', e);
+                    }
+                }
+                downloadQRImage(canvas);
+            }, 'image/png');
+        }
+
+        function downloadQRImage(canvas) {
+            if (!canvas) return;
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'qr-code.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('💾 QR-код скачан');
+            }, 'image/png');
+        }
+
+        // --- Toast-уведомления ---
+        function showToast(message) {
+            let toast = document.getElementById('app-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'app-toast';
+                toast.style.cssText =
+                    'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);' +
+                    'background:#333;color:#fff;padding:10px 20px;border-radius:8px;' +
+                    'font-size:0.9rem;opacity:0;transition:opacity 0.3s;' +
+                    'z-index:1000;pointer-events:none;max-width:90%;text-align:center;';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = message;
+            toast.style.opacity = '1';
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2200);
+        }
+
+        // --- История ---
+        const HISTORY_KEY = 'qr_tool_history';
+
+        function getHistory() {
+            try {
+                const stored = localStorage.getItem(HISTORY_KEY);
+                if (!stored) return [];
+                const parsed = JSON.parse(stored);
+                if (!Array.isArray(parsed)) return [];
+                return parsed.filter(item =>
+                    item && typeof item.text === 'string' &&
+                    typeof item.type === 'string'
+                );
+            } catch (e) {
+                console.warn('Не удалось прочитать историю:', e);
+                return [];
+            }
+        }
+
+        function saveHistory(history) {
+            try {
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+            } catch (e) {
+                console.warn('Не удалось сохранить историю:', e);
+            }
+        }
+
+        function addToHistory(text, type) {
+            const history = getHistory();
+            history.unshift({
+                text: text,
+                type: type,
+                timestamp: new Date().toISOString()
+            });
+            if (history.length > 50) history.pop();
+            saveHistory(history);
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            const emptyMsg = document.getElementById('empty-history');
+            const history = getHistory();
+
+            list.innerHTML = '';
+
+            if (history.length === 0) {
+                emptyMsg.style.display = 'block';
+                return;
+            }
+            emptyMsg.style.display = 'none';
+
+            history.forEach((item, index) => {
+                const li = document.createElement('li');
+
+                const typeLabel = document.createElement('span');
+                typeLabel.className = `history-item-type type-${item.type}`;
+                typeLabel.textContent = item.type === 'scan' ? 'Скан' : 'Ген';
+
+                const textSpan = document.createElement('span');
+                textSpan.className = 'history-item-text';
+                textSpan.textContent = item.text;
+
+                const regenBtn = document.createElement('button');
+                regenBtn.className = 'regen-btn';
+                regenBtn.textContent = '↻';
+                regenBtn.title = 'Сгенерировать QR из этого текста';
+                regenBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    useScannedText(item.text);
+                };
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-btn';
+                delBtn.textContent = '✕';
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteHistoryItem(index);
+                };
+
+                li.appendChild(typeLabel);
+                li.appendChild(textSpan);
+                li.appendChild(regenBtn);
+                li.appendChild(delBtn);
+                list.appendChild(li);
+            });
+        }
+
+        function deleteHistoryItem(index) {
+            const history = getHistory();
+            history.splice(index, 1);
+            saveHistory(history);
+            renderHistory();
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (!html5QrcodeScanner) return;
+            try {
+                if (document.hidden) {
+                    html5QrcodeScanner.pause(true);
+                } else if (document.querySelector('.tab-btn.active')?.dataset.tab === 'scanner') {
+                    html5QrcodeScanner.resume();
+                }
+            } catch (e) {}
+        });
+    </script>
+</body>
+</html>
