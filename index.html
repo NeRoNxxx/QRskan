@@ -77,7 +77,7 @@
         .tab-content { display: none; padding: 20px 20px 24px; }
         .tab-content.active { display: block; }
 
-        /* ✅ Контейнер для видео ZXing */
+        /* ===== СКАНЕР ===== */
         #reader {
             width: 100%;
             height: 55vh;
@@ -528,7 +528,7 @@
 
         <div id="scanner" class="tab-content active">
             <div id="reader">
-                <video id="reader-video" muted playsinline></video>
+                <video id="reader-video" muted playsinline autoplay></video>
             </div>
             <div class="scanner-controls">
                 <button id="btn-start" class="btn-start">▶ Старт сканирования</button>
@@ -579,9 +579,8 @@
         </div>
     </div>
 
-    <!-- ✅ ZXing library + browser -->
-    <script src="https://unpkg.com/@zxing/library@0.21.3"></script>
-    <script src="https://unpkg.com/@zxing/browser@0.1.5"></script>
+    <!-- ✅ zxing-wasm (IIFE, глобальная переменная ZXingWASM) -->
+    <script src="https://cdn.jsdelivr.net/npm/zxing-wasm@1.3.5/dist/iife/reader/index.js"></script>
     <!-- Генератор QR остаётся прежним -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.4.4/qrcode.min.js"></script>
 
@@ -589,15 +588,19 @@
         // ============================================================
         //  СОСТОЯНИЕ
         // ============================================================
-        let codeReader = null;
-        let scannerControls = null;      // IScannerControls от ZXing
-        let isScanning = false;
+        let currentStream = null;
+        let scanningActive = false;
+        let scanningFrameId = null;
         let isStopping = false;
         let torchOn = false;
         let torchSupported = false;
         let lastScanText = '';
         let lastScanTime = 0;
         const SCAN_DEBOUNCE_MS = 3000;
+
+        // ✅ OffscreenCanvas для захвата кадров (без вставки в DOM)
+        let captureCanvas = null;
+        let captureCtx = null;
 
         let lastGeneratedCanvas = null;
         let lastGeneratedText = '';
@@ -606,6 +609,12 @@
         //  ИНИЦИАЛИЗАЦИЯ
         // ============================================================
         document.addEventListener('DOMContentLoaded', () => {
+            if (typeof ZXingWASM === 'undefined') {
+                showScanError('Библиотека zxing-wasm не загружена', 'Проверьте интернет-соединение и обновите страницу.');
+                return;
+            }
+            console.log('✓ zxing-wasm загружен');
+
             initTabs();
             initScanner();
             initGenerator();
@@ -624,7 +633,7 @@
             document.querySelectorAll('.tab-content').forEach(c => {
                 c.classList.toggle('active', c.id === tabId);
             });
-            if (tabId !== 'scanner' && isScanning) stopScanning();
+            if (tabId !== 'scanner' && scanningActive) stopScanning();
             if (tabId === 'history') renderHistory();
         }
 
@@ -675,33 +684,11 @@
         }
 
         // ============================================================
-        //  СКАНЕР — ZXing с TRY_HARDER
+        //  СКАНЕР (zxing-wasm)
         // ============================================================
         function initScanner() {
-            if (typeof ZXingBrowser === 'undefined' || typeof ZXing === 'undefined') {
-                showScanError('Библиотека ZXing не загружена', 'Проверьте интернет-соединение и обновите страницу.');
-                return;
-            }
-
-            try {
-                // ✅ Hints: TRY_HARDER + только DataMatrix и QR
-                const hints = new Map();
-                hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-                hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-                    ZXing.BarcodeFormat.DATA_MATRIX,
-                    ZXing.BarcodeFormat.QR_CODE
-                ]);
-
-                codeReader = new ZXingBrowser.BrowserMultiFormatReader(hints);
-                console.log('✓ ZXing инициализирован (TRY_HARDER, DataMatrix + QR)');
-            } catch (err) {
-                console.error('Ошибка инициализации ZXing:', err);
-                showScanError('Не удалось инициализировать сканер', err?.message || String(err));
-                return;
-            }
-
             document.getElementById('btn-start').addEventListener('click', () => {
-                if (isScanning || isStopping) stopScanning();
+                if (scanningActive || isStopping) stopScanning();
                 else startScanning();
             });
 
@@ -712,16 +699,12 @@
             document.getElementById('btn-torch').addEventListener('click', toggleTorch);
 
             document.addEventListener('visibilitychange', () => {
-                if (document.hidden && isScanning) stopScanning();
+                if (document.hidden && scanningActive) stopScanning();
             });
         }
 
         async function startScanning() {
-            if (isScanning || isStopping) return;
-            if (!codeReader) {
-                alert('Сканер не инициализирован. Обновите страницу.');
-                return;
-            }
+            if (scanningActive || isStopping) return;
 
             const btnStart = document.getElementById('btn-start');
             btnStart.disabled = true;
@@ -740,41 +723,53 @@
                 return;
             }
 
-            const videoEl = document.getElementById('reader-video');
-
             try {
-                // ✅ decodeFromConstraints даёт контроль над facingMode и разрешением
-                scannerControls = await codeReader.decodeFromConstraints(
-                    {
-                        video: {
-                            facingMode: { ideal: "environment" },
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 }
-                        }
-                    },
-                    videoEl,
-                    (result, error) => {
-                        if (result) {
-                            onScanSuccess(result.getText(), result);
-                        }
-                        // NotFoundException — норма, игнорируем
+                // ✅ 1. Получаем поток с камеры
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: "environment" },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
                     }
-                );
+                });
 
-                console.log('✓ ZXing камера запущена');
-                isScanning = true;
+                currentStream = stream;
+                const videoEl = document.getElementById('reader-video');
+                videoEl.srcObject = stream;
+
+                // Ждём, пока видео будет готово
+                await new Promise((resolve) => {
+                    if (videoEl.readyState >= 2) { resolve(); return; }
+                    videoEl.onloadeddata = () => resolve();
+                });
+                await videoEl.play();
+
+                // ✅ 2. Подготовка canvas для захвата кадров
+                captureCanvas = document.createElement('canvas');
+                captureCanvas.width = videoEl.videoWidth;
+                captureCanvas.height = videoEl.videoHeight;
+                captureCtx = captureCanvas.getContext('2d', { willReadFrequently: true });
+
+                console.log(`✓ Камера запущена (${videoEl.videoWidth}×${videoEl.videoHeight})`);
+
+                scanningActive = true;
                 btnStart.textContent = '⏹ Остановить';
                 btnStart.classList.add('is-scanning');
                 btnStart.disabled = false;
 
                 await checkTorchSupport();
 
+                // ✅ 3. Запуск цикла сканирования
+                scanningFrameId = requestAnimationFrame(scanLoop);
+
             } catch (err) {
                 console.error('Не удалось запустить камеру:', err);
-
                 let devices = [];
                 try {
-                    devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+                    const list = await navigator.mediaDevices.enumerateDevices();
+                    devices = list
+                        .filter(d => d.kind === 'videoinput')
+                        .map(d => ({ label: d.label || '(без имени)', id: d.deviceId ? d.deviceId.substring(0, 8) + '…' : '—' }));
                 } catch (e) {}
 
                 showScanError(
@@ -782,7 +777,7 @@
                     'Проверьте разрешения и что страница открыта по HTTPS.',
                     {
                         error: `${err?.name || 'Error'}: ${err?.message || String(err)}`,
-                        devices: devices.map(d => ({ label: d.label || '(без имени)', id: d.deviceId?.substring(0, 8) + '…' })),
+                        devices,
                         diagnostics: {
                             isSecureContext: window.isSecureContext,
                             protocol: window.location.protocol,
@@ -794,12 +789,49 @@
             }
         }
 
+        // ✅ Цикл сканирования: захват кадра → readBarcodesFromImageData
+        async function scanLoop() {
+            if (!scanningActive) return;
+
+            const videoEl = document.getElementById('reader-video');
+
+            if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+                try {
+                    // Захватываем кадр
+                    captureCtx.drawImage(videoEl, 0, 0, captureCanvas.width, captureCanvas.height);
+                    const imageData = captureCtx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
+
+                    // ✅ Декодируем через zxing-wasm
+                    const results = await ZXingWASM.readBarcodesFromImageData(imageData, {
+                        formats: ["DataMatrix", "QRCode"],
+                        tryHarder: true,
+                        tryRotate: true,
+                        tryInvert: true
+                    });
+
+                    if (results && results.length > 0) {
+                        const result = results[0];
+                        if (result.text) {
+                            onScanSuccess(result.text, result);
+                            return; // stopScanning уже вызван внутри onScanSuccess
+                        }
+                    }
+                } catch (e) {
+                    // Ошибки декодирования на кадрах без кода — норма, игнорируем
+                }
+            }
+
+            if (scanningActive) {
+                scanningFrameId = requestAnimationFrame(scanLoop);
+            }
+        }
+
         function resetStartButton() {
             const btnStart = document.getElementById('btn-start');
             btnStart.textContent = '▶ Старт сканирования';
             btnStart.classList.remove('is-scanning');
             btnStart.disabled = false;
-            isScanning = false;
+            scanningActive = false;
         }
 
         function showScanError(title, message, details) {
@@ -830,35 +862,37 @@
 
         async function stopScanning() {
             if (isStopping) return;
-            if (!isScanning) return;
+            if (!scanningActive) return;
 
             isStopping = true;
-            isScanning = false;
+            scanningActive = false;
 
-            // Выключаем фонарик перед остановкой
+            // Останавливаем цикл сканирования
+            if (scanningFrameId !== null) {
+                cancelAnimationFrame(scanningFrameId);
+                scanningFrameId = null;
+            }
+
+            // Выключаем фонарик
             if (torchOn) {
                 try { await setTorch(false); } catch (e) {}
             }
 
-            // ✅ Останавливаем ZXing
+            // Останавливаем все треки
             try {
-                if (scannerControls) {
-                    scannerControls.stop();
-                    scannerControls = null;
+                if (currentStream) {
+                    currentStream.getTracks().forEach(t => t.stop());
+                    currentStream = null;
                 }
+                const videoEl = document.getElementById('reader-video');
+                if (videoEl) videoEl.srcObject = null;
             } catch (e) {
-                console.warn('Ошибка остановки ZXing:', e);
+                console.warn('Ошибка остановки камеры:', e);
             }
 
-            // ✅ Дополнительно останавливаем все треки (на случай, если controls не всё закрыл)
-            try {
-                const videoEl = document.getElementById('reader-video');
-                const stream = videoEl?.srcObject;
-                if (stream) {
-                    stream.getTracks().forEach(t => t.stop());
-                    videoEl.srcObject = null;
-                }
-            } catch (e) {}
+            // Сброс canvas
+            captureCanvas = null;
+            captureCtx = null;
 
             lastScanText = '';
             lastScanTime = 0;
@@ -879,9 +913,7 @@
         async function checkTorchSupport() {
             const btnTorch = document.getElementById('btn-torch');
             try {
-                // ✅ У ZXing поток доступен через codeReader.stream
-                const stream = codeReader?.stream || document.getElementById('reader-video')?.srcObject;
-                const track = stream?.getVideoTracks?.()[0];
+                const track = currentStream?.getVideoTracks?.()[0];
                 if (track && track.getCapabilities) {
                     const caps = track.getCapabilities();
                     torchSupported = !!caps.torch;
@@ -896,21 +928,16 @@
         }
 
         async function toggleTorch() {
-            if (!torchSupported || !isScanning) return;
+            if (!torchSupported || !scanningActive) return;
             await setTorch(!torchOn);
         }
 
         async function setTorch(on) {
             const btnTorch = document.getElementById('btn-torch');
             try {
-                const stream = codeReader?.stream || document.getElementById('reader-video')?.srcObject;
-                const track = stream?.getVideoTracks?.()[0];
+                const track = currentStream?.getVideoTracks?.()[0];
                 if (!track) throw new Error('Нет видеотрека');
-
-                await track.applyConstraints({
-                    advanced: [{ torch: on }]
-                });
-
+                await track.applyConstraints({ advanced: [{ torch: on }] });
                 torchOn = on;
                 btnTorch.classList.toggle('active', on);
                 btnTorch.title = on ? 'Выключить фонарик' : 'Включить фонарик';
@@ -927,28 +954,26 @@
             const file = event.target.files?.[0];
             if (!file) return;
 
-            if (isScanning) await stopScanning();
+            if (scanningActive) await stopScanning();
             document.getElementById('scan-error').style.display = 'none';
 
-            const url = URL.createObjectURL(file);
-            const img = new Image();
-
             try {
-                await new Promise((resolve, reject) => {
-                    img.onload = resolve;
-                    img.onerror = reject;
-                    img.src = url;
+                const results = await ZXingWASM.readBarcodesFromImageFile(file, {
+                    formats: ["DataMatrix", "QRCode"],
+                    tryHarder: true,
+                    tryRotate: true,
+                    tryInvert: true
                 });
-
-                const result = await codeReader.decodeFromImageElement(img);
-                handleScanResult(result.getText(), result);
+                if (results && results.length > 0 && results[0].text) {
+                    handleScanResult(results[0].text, results[0]);
+                } else {
+                    throw new Error('Код не найден');
+                }
             } catch (err) {
                 console.error('Ошибка сканирования файла:', err);
                 showScanError('Не удалось распознать файл', 'Попробуйте другое изображение с чётким QR/DataMatrix.');
-            } finally {
-                URL.revokeObjectURL(url);
-                event.target.value = '';
             }
+            event.target.value = '';
         }
 
         // ===== УСПЕШНЫЙ СКАН =====
@@ -959,12 +984,12 @@
             lastScanText = rawText;
             lastScanTime = now;
 
-            if (isScanning) stopScanning();
+            if (scanningActive) stopScanning();
             handleScanResult(rawText, decodedResult);
         }
 
         // ============================================================
-        //  РЕЗУЛЬТАТ
+        //  РЕЗУЛЬТАТ (без изменений)
         // ============================================================
         function handleScanResult(rawText, decodedResult) {
             const displayText = cleanScanText(rawText);
