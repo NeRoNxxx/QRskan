@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>QR-Инструменты</title>
     <style>
-        /* ===== НОВЫЙ ДИЗАЙН ===== */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -34,7 +33,6 @@
             border: 1px solid rgba(255, 255, 255, 0.06);
         }
 
-        /* Шапка */
         .app-header {
             padding: 24px 24px 16px;
             text-align: center;
@@ -57,7 +55,6 @@
             margin-top: 4px;
         }
 
-        /* Вкладки */
         .tabs {
             display: flex;
             margin: 0 16px;
@@ -98,17 +95,21 @@
         /* ===== СКАНЕР ===== */
         #reader {
             width: 100%;
+            height: 50vh;
+            min-height: 280px;
+            max-height: 500px;
             border-radius: 18px;
             overflow: hidden;
             margin-bottom: 14px;
             background: #0a0a14;
-            min-height: 240px;
+            position: relative;
         }
 
-        /* Стили для видео внутри #reader */
         #reader video {
             border-radius: 18px;
             object-fit: cover;
+            width: 100% !important;
+            height: 100% !important;
         }
 
         .scanner-controls {
@@ -149,6 +150,11 @@
             pointer-events: none;
         }
 
+        .btn-start.is-scanning {
+            background: linear-gradient(135deg, #dc3545, #ff5c6c);
+            box-shadow: 0 4px 16px rgba(220, 53, 69, 0.35);
+        }
+
         .btn-file {
             background: #2a2a45;
             color: #c8c8e0;
@@ -177,7 +183,6 @@
             pointer-events: none;
         }
 
-        /* Результат сканирования */
         .scan-result {
             padding: 14px 16px;
             background: #12121f;
@@ -420,17 +425,9 @@
             white-space: nowrap;
         }
 
-        .type-scan {
-            background: #28a745;
-        }
-
-        .type-generate {
-            background: #fd7e14;
-        }
-
-        .type-gs1 {
-            background: #8b5cf6;
-        }
+        .type-scan { background: #28a745; }
+        .type-generate { background: #fd7e14; }
+        .type-gs1 { background: #8b5cf6; }
 
         .delete-btn,
         .regen-btn {
@@ -465,7 +462,6 @@
             font-size: 0.9rem;
         }
 
-        /* Toast */
         #app-toast {
             position: fixed;
             bottom: 24px;
@@ -485,7 +481,6 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
 
-        /* Скрытый input для файла */
         #file-input {
             display: none;
         }
@@ -558,8 +553,9 @@
         // ============================================================
         //  СОСТОЯНИЕ
         // ============================================================
-        let html5QrCode = null;          // экземпляр Html5Qrcode (низкоуровневый API)
+        let html5QrCode = null;
         let isScanning = false;
+        let isStopping = false;
         let torchOn = false;
         let torchSupported = false;
         let lastScanText = '';
@@ -590,7 +586,6 @@
                 c.classList.toggle('active', c.id === tabId);
             });
 
-            // При уходе со сканера — останавливаем камеру (и фонарик)
             if (tabId !== 'scanner' && isScanning) {
                 stopScanning();
             }
@@ -608,17 +603,30 @@
         //  СКАНЕР
         // ============================================================
         function initScanner() {
-            // Низкоуровневый API — полный контроль над UI и камерой
-            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode = new Html5Qrcode("reader", {
+                formatsToSupport: [
+                    Html5QrcodeSupportedFormats.QR_CODE,
+                    Html5QrcodeSupportedFormats.DATA_MATRIX
+                ],
+                useBarCodeDetectorIfSupported: false,
+                verbose: false
+            });
 
-            document.getElementById('btn-start').addEventListener('click', startScanning);
+            // ✅ Toggle: старт / стоп
+            document.getElementById('btn-start').addEventListener('click', () => {
+                if (isScanning || isStopping) {
+                    stopScanning();
+                } else {
+                    startScanning();
+                }
+            });
+
             document.getElementById('btn-file').addEventListener('click', () => {
                 document.getElementById('file-input').click();
             });
             document.getElementById('file-input').addEventListener('change', onFileSelected);
             document.getElementById('btn-torch').addEventListener('click', toggleTorch);
 
-            // При уходе со страницы/сворачивании — останавливаем камеру
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden && isScanning) {
                     stopScanning();
@@ -627,22 +635,29 @@
         }
 
         async function startScanning() {
-            if (isScanning) return;
+            if (isScanning || isStopping) return;
 
             const btnStart = document.getElementById('btn-start');
-            const btnTorch = document.getElementById('btn-torch');
-
             btnStart.disabled = true;
             btnStart.textContent = '⏳ Запуск...';
 
             try {
-                // facingMode: "environment" = задняя камера, без выбора
+                // Задняя камера + HD-разрешение для быстрого распознавания
                 await html5QrCode.start(
-                    { facingMode: "environment" },
                     {
-                        fps: 10,
-                        qrbox: { width: 220, height: 220 },
-                        aspectRatio: 1.0
+                        facingMode: { ideal: "environment" },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    {
+                        fps: 25,
+                        // qrbox = 70% от меньшей стороны viewfinder
+                        qrbox: (viewfinderWidth, viewfinderHeight) => {
+                            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                            const size = Math.floor(minEdge * 0.7);
+                            return { width: size, height: size };
+                        },
+                        disableFlip: false
                     },
                     onScanSuccess,
                     onScanError
@@ -650,51 +665,62 @@
 
                 isScanning = true;
                 btnStart.textContent = '⏹ Остановить';
+                btnStart.classList.add('is-scanning');
                 btnStart.disabled = false;
 
-                // Проверяем поддержку фонарика после запуска камеры
                 await checkTorchSupport();
 
             } catch (err) {
                 console.error('Ошибка запуска камеры:', err);
                 btnStart.textContent = '▶ Старт сканирования';
+                btnStart.classList.remove('is-scanning');
                 btnStart.disabled = false;
                 alert('Не удалось запустить камеру. Проверьте разрешения и что страница открыта по HTTPS.');
             }
         }
 
         async function stopScanning() {
+            if (isStopping) return;
             if (!isScanning) return;
 
-            // Выключаем фонарик перед остановкой
+            isStopping = true;
+            isScanning = false;
+
+            // Фонарик гасим до остановки камеры
             if (torchOn) {
-                await setTorch(false);
+                try { await setTorch(false); } catch (e) {}
             }
 
             try {
                 await html5QrCode.stop();
             } catch (e) {
-                // игнорируем ошибки остановки
+                console.warn('Ошибка остановки камеры:', e);
             }
 
-            isScanning = false;
-            const btnStart = document.getElementById('btn-start');
-            btnStart.textContent = '▶ Старт сканирования';
-            btnStart.disabled = false;
+            // Сброс дебаунса — чтобы можно было снова сканировать тот же код
+            lastScanText = '';
+            lastScanTime = 0;
 
-            // Сбрасываем состояние фонарика
             torchSupported = false;
             torchOn = false;
+
+            const btnStart = document.getElementById('btn-start');
+            btnStart.textContent = '▶ Старт сканирования';
+            btnStart.classList.remove('is-scanning');
+            btnStart.disabled = false;
+
             const btnTorch = document.getElementById('btn-torch');
             btnTorch.disabled = true;
             btnTorch.classList.remove('active');
+            btnTorch.title = 'Фонарик';
+
+            isStopping = false;
         }
 
         // ===== ФОНАРИК =====
         async function checkTorchSupport() {
             const btnTorch = document.getElementById('btn-torch');
             try {
-                // Проверяем через MediaStreamTrack capabilities
                 const stream = document.querySelector('#reader video')?.srcObject;
                 const track = stream?.getVideoTracks?.()[0];
                 if (track && track.getCapabilities) {
@@ -708,11 +734,7 @@
             }
 
             btnTorch.disabled = !torchSupported;
-            if (torchSupported) {
-                btnTorch.title = 'Включить фонарик';
-            } else {
-                btnTorch.title = 'Фонарик не поддерживается на этом устройстве';
-            }
+            btnTorch.title = torchSupported ? 'Включить фонарик' : 'Фонарик не поддерживается';
         }
 
         async function toggleTorch() {
@@ -742,21 +764,18 @@
             const file = event.target.files?.[0];
             if (!file) return;
 
-            // Если камера работает — останавливаем
             if (isScanning) {
                 await stopScanning();
             }
 
             try {
                 const result = await html5QrCode.scanFile(file, true);
-                // scanFile возвращает строку (decodedText)
                 handleScanResult(result, null);
             } catch (err) {
                 console.error('Ошибка сканирования файла:', err);
                 alert('Не удалось распознать код на изображении. Попробуйте другое фото.');
             }
 
-            // Сбрасываем input, чтобы можно было выбрать тот же файл снова
             event.target.value = '';
         }
 
@@ -768,17 +787,16 @@
             lastScanText = rawText;
             lastScanTime = now;
 
-            // ✅ Автоматически выключаем фонарик после успешного скана
-            if (torchOn) {
-                setTorch(false);
-            }
-
+            // Показываем результат
             handleScanResult(rawText, decodedResult);
+
+            // ✅ Автоотключение сканера после успешного скана
+            if (isScanning) {
+                stopScanning();
+            }
         }
 
-        function onScanError(err) {
-            // игнорируем ошибки сканирования
-        }
+        function onScanError(err) {}
 
         function handleScanResult(rawText, decodedResult) {
             const displayText = cleanScanText(rawText);
@@ -860,7 +878,7 @@
             if (!text) return '';
             let cleaned = String(text);
             cleaned = cleaned.replace(/^\](d2|Q3|e0|C1)/, '');
-            cleaned = cleaned.replace(/\x1D/g, '');       // скрываем FNC1
+            cleaned = cleaned.replace(/\x1D/g, '');
             cleaned = cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
             return cleaned;
         }
