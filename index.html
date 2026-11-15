@@ -992,60 +992,53 @@
         //  РЕЗУЛЬТАТ
         // ============================================================
         function handleScanResult(rawText, decodedResult) {
-            const displayText = cleanScanText(rawText);
-            const isGS1 = isGS1Text(rawText);
-            const gs1RawData = isGS1 ? stripSymbologyPrefix(rawText) : null;
-            const hasHidden = rawText !== displayText;
+    const displayText = cleanScanText(rawText);
+    const isGS1 = isGS1Text(rawText);
+    const gs1RawData = isGS1 ? stripSymbologyPrefix(rawText) : null;
+    const hasHidden = rawText !== displayText;
 
-            const bodyEl = document.getElementById('scan-modal-body');
-            const actionsEl = document.getElementById('scan-modal-actions');
-            bodyEl.innerHTML = '';
-            actionsEl.innerHTML = '';
+    const bodyEl = document.getElementById('scan-modal-body');
+    const actionsEl = document.getElementById('scan-modal-actions');
+    bodyEl.innerHTML = '';
+    actionsEl.innerHTML = '';
 
-            const wrap = document.createElement('div');
-            if (isGS1) {
-                const badge = document.createElement('span');
-                badge.className = 'gs1-badge';
-                badge.textContent = 'GS1';
-                wrap.appendChild(badge);
-            }
-            const textSpan = document.createElement('span');
-            textSpan.innerHTML = `<strong>Результат:</strong> ${escapeHtml(displayText)}`;
-            wrap.appendChild(textSpan);
-            bodyEl.appendChild(wrap);
+    const wrap = document.createElement('div');
+    if (isGS1) {
+        const badge = document.createElement('span');
+        badge.className = 'gs1-badge';
+        badge.textContent = 'GS1';
+        wrap.appendChild(badge);
+    }
+    const textSpan = document.createElement('span');
+    textSpan.innerHTML = `<strong>Результат:</strong> ${escapeHtml(displayText)}`;
+    wrap.appendChild(textSpan);
+    bodyEl.appendChild(wrap);
 
-            if (hasHidden) {
-                const details = document.createElement('details');
-                details.className = 'raw-details';
-                const summary = document.createElement('summary');
-                summary.textContent = 'Показать исходные данные';
-                const rawCode = document.createElement('code');
-                rawCode.textContent = rawText.replace(/\x1D/g, '␝');
-                details.appendChild(summary);
-                details.appendChild(rawCode);
-                bodyEl.appendChild(details);
-            }
+    if (hasHidden) {
+        const details = document.createElement('details');
+        details.className = 'raw-details';
+        const summary = document.createElement('summary');
+        summary.textContent = 'Показать исходные данные';
+        const rawCode = document.createElement('code');
+        rawCode.textContent = rawText.replace(/\x1D/g, '␝');
+        details.appendChild(summary);
+        details.appendChild(rawCode);
+        bodyEl.appendChild(details);
+    }
 
-            // ✅ Одна кнопка — использует GS1 rawText если он есть, иначе обычный текст
-            const genBtn = document.createElement('button');
-            genBtn.className = 'btn-regen';
-            genBtn.textContent = '↻ QR';
-            genBtn.onclick = () => {
-                closeScanModal();
-                useScannedText(displayText, gs1RawData);
-            };
-            actionsEl.appendChild(genBtn);
+    // ✅ Только одна кнопка — QR
+    const genBtn = document.createElement('button');
+    genBtn.className = 'btn-regen';
+    genBtn.textContent = '↻ QR';
+    genBtn.onclick = () => {
+        closeScanModal();
+        useScannedText(displayText, gs1RawData);
+    };
+    actionsEl.appendChild(genBtn);
 
-            const shareBtn = document.createElement('button');
-            shareBtn.className = 'btn-share';
-            shareBtn.textContent = '📤 Поделиться';
-            shareBtn.onclick = () => shareText(displayText);
-            actionsEl.appendChild(shareBtn);
-
-            openScanModal();
-            addToHistory({ text: displayText, rawText: gs1RawData, type: 'scan' });
-        }
-
+    openScanModal();
+    addToHistory({ text: displayText, rawText: gs1RawData, type: 'scan' });
+}
         function cleanScanText(text) {
             if (!text) return '';
             let cleaned = String(text);
