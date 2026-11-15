@@ -989,7 +989,7 @@
         }
 
         // ============================================================
-        //  РЕЗУЛЬТАТ (без изменений)
+        //  РЕЗУЛЬТАТ
         // ============================================================
         function handleScanResult(rawText, decodedResult) {
             const displayText = cleanScanText(rawText);
@@ -1026,19 +1026,15 @@
                 bodyEl.appendChild(details);
             }
 
+            // ✅ Одна кнопка — использует GS1 rawText если он есть, иначе обычный текст
             const genBtn = document.createElement('button');
             genBtn.className = 'btn-regen';
             genBtn.textContent = '↻ QR';
-            genBtn.onclick = () => { closeScanModal(); useScannedText(displayText, null); };
+            genBtn.onclick = () => {
+                closeScanModal();
+                useScannedText(displayText, gs1RawData);
+            };
             actionsEl.appendChild(genBtn);
-
-            if (isGS1 && gs1RawData) {
-                const gs1Btn = document.createElement('button');
-                gs1Btn.className = 'btn-gs1';
-                gs1Btn.textContent = '↻ GS1 QR';
-                gs1Btn.onclick = () => { closeScanModal(); useScannedText(displayText, gs1RawData); };
-                actionsEl.appendChild(gs1Btn);
-            }
 
             const shareBtn = document.createElement('button');
             shareBtn.className = 'btn-share';
